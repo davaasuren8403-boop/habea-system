@@ -41,8 +41,8 @@
       <input id="join-code" type="text" autocomplete="off" required>
       <label for="join-name">Овог нэр</label>
       <input id="join-name" type="text" autocomplete="name" required>
-      <label for="join-group">Ажлын бүлэг</label>
-      <select id="join-group" required></select>
+      <label>Ажлын бүлэг: үндсэн ажил болон хааяа хийдэг ажлаа бүгдийг нь сонго (жишээ нь ээлжээр усны машин барьдаг, гар багаж ашигладаг бол «Усны машины жолооч», «Гар багаж ашиглах»-ыг мөн сонго)</label>
+      <div id="join-groups"></div>
       <label for="join-position">Албан тушаал (заавал биш)</label>
       <input id="join-position" type="text">
       <div class="row"><button type="submit">Хадгалах</button></div>
@@ -68,8 +68,12 @@
     <div class="row">
       <button id="btn-change-route" class="secondary" type="button">Маршрут өөрчлөх</button>
     </div>
-    <label for="my-group">Миний ажлын бүлэг (алдаатай бол энд зас)</label>
-    <select id="my-group"></select>
+    <details style="margin:10px 0">
+      <summary id="my-groups-summary" style="cursor:pointer"></summary>
+      <p class="muted">Давхар ажил хавсардаг бол бүх ажлаа сонгоно. Сонгосон бүлэг бүрийн зааварчилгаа танд ирнэ.</p>
+      <div id="my-groups"></div>
+      <div class="row"><button id="btn-save-groups" type="button">Бүлгээ хадгалах</button></div>
+    </details>
     <h2 style="margin-top:22px">Миний зааварчилгаанууд</h2>
     <div id="bundle-cta" hidden>
       <button id="btn-bundle" type="button"></button>

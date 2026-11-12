@@ -118,7 +118,7 @@ let routeMap = new Map();
 async function loadRoutes() {
   const [rRes, pRes] = await Promise.all([
     sb.from("commute_routes").select("*").eq("school_id", me.school_id),
-    sb.from("profiles").select("id, full_name, staff_group").eq("school_id", me.school_id).order("full_name")
+    sb.from("profiles").select("id, full_name, staff_group, staff_groups").eq("school_id", me.school_id).order("full_name")
   ]);
   if (rRes.error || pRes.error) {
     setMsg("msg-global", translateError(rRes.error || pRes.error), "error");
@@ -137,7 +137,7 @@ async function loadRoutes() {
     body.append(
       el("tr", {},
         el("td", {}, p.full_name),
-        el("td", {}, p.staff_group || ""),
+        el("td", {}, groupsOf(p).join(", ")),
         el("td", {}, MODES[r.mode] || r.mode),
         el("td", {}, fmtKm(r.distance_m)),
         el("td", {}, r.duration_min + " мин"))
@@ -166,7 +166,7 @@ function buildAudience() {
 
 async function loadStaff() {
   const { data, error } = await sb
-    .from("profiles").select("id, full_name, position, staff_group").eq("school_id", me.school_id).order("full_name");
+    .from("profiles").select("id, full_name, position, staff_group, staff_groups").eq("school_id", me.school_id).order("full_name");
   if (error) {
     setMsg("msg-global", translateError(error), "error");
     return;
@@ -174,18 +174,20 @@ async function loadStaff() {
   const list = $("staff-list");
   list.replaceChildren();
   for (const p of data) {
-    const sel = el("select", { style: "max-width:220px" },
-      el("option", { value: "" }, "— бүлэггүй —"),
-      ...STAFF_GROUPS.map((g) => el("option", { value: g }, g)));
-    sel.value = p.staff_group || "";
-    sel.addEventListener("change", async () => {
-      const { error: e2 } = await sb.rpc("set_staff_group", { p_user: p.id, p_group: sel.value });
+    const box = el("div", {});
+    buildGroupChecks(box, groupsOf(p));
+    const save = el("button", { type: "button", class: "secondary" }, "Хадгалах");
+    const summary = el("summary", { style: "cursor:pointer" }, groupsOf(p).join(", ") || "— бүлэггүй —");
+    save.addEventListener("click", async () => {
+      const gs = readGroupChecks(box);
+      const { error: e2 } = await sb.rpc("set_staff_groups", { p_user: p.id, p_groups: gs });
+      if (!e2) { p.staff_groups = gs; summary.textContent = gs.join(", ") || "— бүлэггүй —"; }
       setMsg("msg-global", e2 ? translateError(e2) : "Бүлэг хадгалагдлаа.", e2 ? "error" : "");
     });
     list.append(
       el("div", { class: "doc-item" },
         el("div", {}, el("strong", {}, p.full_name), el("div", { class: "muted" }, p.position || "")),
-        sel)
+        el("details", { style: "max-width:420px" }, summary, box, save))
     );
   }
 }
@@ -325,7 +327,7 @@ async function showReport(d, day) {
   show("view-qr", false);
   show("view-daily", false);
   const [profRes, ackRes] = await Promise.all([
-    sb.from("profiles").select("id, full_name, position, staff_group").eq("school_id", me.school_id).order("full_name"),
+    sb.from("profiles").select("id, full_name, position, staff_group, staff_groups").eq("school_id", me.school_id).order("full_name"),
     sb.from("acknowledgements").select("*").eq("document_id", d.id)
   ]);
   if (profRes.error || ackRes.error) {
@@ -346,11 +348,11 @@ async function showReport(d, day) {
         const r = routeMap.get(p.id);
         return (r && r.mode === d.commute_mode) || acks.has(p.id);
       }
-      return !aud || aud.includes(p.staff_group) || acks.has(p.id);
+      return !aud || groupsOf(p).some((g) => aud.includes(g)) || acks.has(p.id);
     })
     .map((p) => ({
       name: p.full_name,
-      group: p.staff_group || "",
+      group: groupsOf(p).join(", "),
       route: routeMap.get(p.id) || null,
       position: p.position || "",
       ack: acks.get(p.id) || null
@@ -396,7 +398,7 @@ async function showDaily() {
   const end = new Date(start.getTime() + 24 * 3600 * 1000);
   setMsg("msg-global", "");
   const [profRes, ackRes, docRes] = await Promise.all([
-    sb.from("profiles").select("id, full_name, position, staff_group").eq("school_id", me.school_id).order("full_name"),
+    sb.from("profiles").select("id, full_name, position, staff_group, staff_groups").eq("school_id", me.school_id).order("full_name"),
     sb.from("acknowledgements").select("*").gte("signed_at", start.toISOString()).lt("signed_at", end.toISOString()).order("signed_at"),
     sb.from("documents").select("id, title, kind").eq("school_id", me.school_id)
   ]);
@@ -428,14 +430,14 @@ async function showDaily() {
   dailyData.rows.forEach((r, i) => {
     const first = [...r.acks.values()][0];
     body.append(el("tr", {},
-      el("td", {}, i + 1), el("td", {}, r.p.full_name), el("td", {}, r.p.staff_group || ""),
+      el("td", {}, i + 1), el("td", {}, r.p.full_name), el("td", {}, groupsOf(r.p).join(", ")),
       ...cols.map((c) => {
         const ak = r.acks.get(c.id);
         return el("td", {}, ak ? el("span", { class: "badge ok" }, new Date(ak.signed_at).toLocaleTimeString("mn-MN", { hour: "2-digit", minute: "2-digit" })) : el("span", { class: "badge no" }, "—"));
       }),
       el("td", {}, el("img", { class: "sig", src: first.signature, alt: "гарын үсэг" }))));
   });
-  $("daily-missing").textContent = missing.length ? missing.map((p) => p.full_name + (p.staff_group ? " (" + p.staff_group + ")" : "")).join(", ") : "Бүгд зааварчилгаа авсан.";
+  $("daily-missing").textContent = missing.length ? missing.map((p) => p.full_name + (groupsOf(p).length ? " (" + groupsOf(p).join(", ") + ")" : "")).join(", ") : "Бүгд зааварчилгаа авсан.";
   show("view-report", false);
   show("view-qr", false);
   show("view-daily");
@@ -446,7 +448,7 @@ function downloadDailyCsv() {
   if (!dailyData) return;
   const { cols, rows, day, missing } = dailyData;
   const lines = [["#", "Овог нэр", "Бүлэг", ...cols.map((c) => c.title)].map(csvCell).join(",")];
-  rows.forEach((r, i) => lines.push([i + 1, r.p.full_name, r.p.staff_group || "",
+  rows.forEach((r, i) => lines.push([i + 1, r.p.full_name, groupsOf(r.p).join(", "),
     ...cols.map((c) => { const ak = r.acks.get(c.id); return ak ? fmtDate(ak.signed_at) : ""; })].map(csvCell).join(",")));
   lines.push("");
   lines.push(["Аваагүй ажилтнууд", ...missing.map((p) => p.full_name)].map(csvCell).join(","));

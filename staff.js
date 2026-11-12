@@ -52,11 +52,13 @@ async function route() {
 }
 
 // ---- Нүүр: миний зам + миний зааварчилгаанууд ----
-async function onMyGroup() {
-  const g = $("my-group").value;
-  const { error } = await sb.rpc("set_staff_group", { p_user: currentUser.id, p_group: g });
+async function onMyGroups() {
+  const gs = readGroupChecks($("my-groups"));
+  if (!gs.length) { setMsg("msg-global", "Дор хаяж нэг ажлын бүлэг сонгоно уу.", "error"); return; }
+  const { error } = await sb.rpc("set_staff_groups", { p_user: currentUser.id, p_groups: gs });
   if (error) { setMsg("msg-global", translateError(error), "error"); return; }
-  currentProfile.staff_group = g;
+  currentProfile.staff_groups = gs;
+  currentProfile.staff_group = gs[0];
   setMsg("msg-global", "Ажлын бүлэг шинэчлэгдлээ.");
   await loadHome();
 }
@@ -75,12 +77,9 @@ async function loadHome() {
   const r = routeRes.data;
   $("route-summary").textContent =
     `${MODES[r.mode] || r.mode} · ойролцоогоор ${fmtKm(r.distance_m)} · ${r.duration_min} минут`;
-  const sel = $("my-group");
-  if (!sel.options.length) {
-    for (const g of STAFF_GROUPS) sel.append(el("option", { value: g }, g));
-    sel.addEventListener("change", onMyGroup);
-  }
-  sel.value = currentProfile.staff_group || "";
+  const mine = groupsOf(currentProfile);
+  buildGroupChecks($("my-groups"), mine);
+  $("my-groups-summary").textContent = "Миний ажлын бүлэг: " + (mine.join(", ") || "сонгоогүй") + " (өөрчлөх)";
   show("view-home");
   await loadMyDocs(r);
 }
@@ -97,7 +96,7 @@ async function loadMyDocs(route) {
   }
   const mine = docs.filter((d) => {
     if (d.kind === "commute") return d.commute_mode === route.mode;
-    return !d.audience || !d.audience.length || d.audience.includes(currentProfile.staff_group);
+    return !d.audience || !d.audience.length || groupsOf(currentProfile).some((g) => d.audience.includes(g));
   });
   const { data: acks } = await sb.from("acknowledgements").select("document_id, sign_date").eq("user_id", currentUser.id);
   const today = todayUB();
@@ -300,15 +299,20 @@ async function onAuth(e) {
 
 async function onJoin(e) {
   e.preventDefault();
+  const groups = readGroupChecks($("join-groups"));
+  if (!groups.length) { setMsg("msg-join", "Ажлын бүлгээ сонгоно уу.", "error"); return; }
   const { error } = await sb.rpc("join_school", {
     p_code: $("join-code").value,
     p_name: $("join-name").value,
     p_position: $("join-position").value,
-    p_group: $("join-group").value
+    p_group: groups[0]
   });
   if (error) {
     setMsg("msg-join", translateError(error), "error");
     return;
+  }
+  if (groups.length > 1) {
+    await sb.rpc("set_staff_groups", { p_user: currentUser.id, p_groups: groups });
   }
   await route();
 }
@@ -399,10 +403,10 @@ try {
   if (saved) $("join-code").value = saved;
 } catch (_) {}
 
-for (const g of STAFF_GROUPS) $("join-group").append(el("option", { value: g }, g));
-$("join-group").insertBefore(el("option", { value: "", selected: "selected", disabled: "disabled" }, "Сонгоно уу"), $("join-group").firstChild);
+buildGroupChecks($("join-groups"), []);
 
 $("form-route").addEventListener("submit", onRouteSave);
+$("btn-save-groups").addEventListener("click", onMyGroups);
 $("btn-my-loc").addEventListener("click", onMyLoc);
 $("btn-search").addEventListener("click", onSearch);
 $("route-search").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); onSearch(); } });

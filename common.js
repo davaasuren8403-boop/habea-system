@@ -9,7 +9,8 @@ const STAFF_GROUPS = [
   "Нийгмийн ажилтан", "Сэтгэлзүйч", "Эмч",
   "Сантехникч", "Цахилгаанчин", "Усны машины жолооч", "Үйлчлэгч", "Сахиул",
   "Тогооч", "Тогоочийн туслах", "Угаагч",
-  "Дотуур байрны багш", "Дотуур байрны үйлчлэгч", "Дотуур байрны сахиул", "Бусад"
+  "Дотуур байрны багш", "Дотуур байрны үйлчлэгч", "Дотуур байрны сахиул",
+  "Гар багаж ашиглах", "Бусад"
 ];
 
 function $(id) {
@@ -278,4 +279,23 @@ async function resolveSignatures(acks) {
     if (a.signature && a.signature.startsWith("same:")) a.signature = map.get(a.signature.slice(5)) || "";
   }
   return acks;
+}
+
+// Ажилтны бүх ажлын бүлэг (давхар ажил хавсардаг хүн олон бүлэгтэй)
+function groupsOf(p) {
+  if (p && p.staff_groups && p.staff_groups.length) return p.staff_groups;
+  return p && p.staff_group ? [p.staff_group] : [];
+}
+function buildGroupChecks(container, selected) {
+  container.replaceChildren();
+  container.classList.add("groups");
+  const sel = new Set(selected || []);
+  for (const g of STAFF_GROUPS) {
+    const input = el("input", { type: "checkbox", value: g });
+    input.checked = sel.has(g);
+    container.append(el("label", { class: "check" }, input, el("span", {}, g)));
+  }
+}
+function readGroupChecks(container) {
+  return [...container.querySelectorAll("input:checked")].map((i) => i.value);
 }
