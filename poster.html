@@ -16,7 +16,7 @@
   .wave-bot { position:absolute; left:0; bottom:0; width:100%; height:44mm; }
   .head { position:relative; z-index:2; margin-top:15mm; width:100%; padding:0 14mm; display:flex; align-items:center; gap:6mm; text-align:left; }
   .logo { width:36mm; height:36mm; flex:none; display:flex; align-items:center; justify-content:center; }
-  .logo img { max-width:36mm; max-height:36mm; object-fit:contain; }
+  .logo img { width:36mm; height:36mm; object-fit:cover; border-radius:50%; }
   .logo .ph { width:34mm; height:34mm; border:2px dashed #8aa; border-radius:50%; color:#678; font-size:.75rem; display:flex; align-items:center; justify-content:center; text-align:center; padding:4px; }
   .org { flex:1; }
   .org b { display:block; font-size:12.5pt; letter-spacing:.2px; text-transform:uppercase; color:var(--navy); line-height:1.3; }
@@ -38,7 +38,7 @@
   .qrwrap { position:relative; width:78mm; height:78mm; background:#fff; padding:3mm; border-radius:3mm; box-shadow:0 0 0 1px #d7dfee; display:flex; align-items:center; justify-content:center; }
   #qr img, #qr canvas { width:72mm !important; height:72mm !important; display:block; }
   .center-logo { position:absolute; left:50%; top:50%; width:17mm; height:17mm; transform:translate(-50%,-50%); background:#fff; border-radius:50%; padding:1mm; display:none; align-items:center; justify-content:center; }
-  .center-logo img { max-width:100%; max-height:100%; object-fit:contain; }
+  .center-logo img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
   .banner { position:relative; z-index:2; margin-top:6mm; width:112mm; background:var(--navy); color:#fff; border-radius:4mm; padding:3.5mm 6mm; display:flex; align-items:center; gap:5mm; text-align:left; }
   .banner svg { width:11mm; height:15mm; flex:none; fill:none; stroke:#fff; stroke-width:2; }
   .banner b { display:block; font-size:14pt; }
@@ -109,8 +109,8 @@ function texts() {
 }
 orgIn.addEventListener("input", texts); sloIn.addEventListener("input", texts); texts();
 const url = new URL("index.html?code=" + encodeURIComponent(code), location.href).href;
-new QRCode(document.getElementById("qr"), { text: url, width: 400, height: 400, correctLevel: QRCode.CorrectLevel.H });
-let logoSrc = null;
+try { new QRCode(document.getElementById("qr"), { text: url, width: 400, height: 400, correctLevel: QRCode.CorrectLevel.H }); } catch (e) { document.getElementById("qr").textContent = "QR ачаалагдсангүй. Интернэтээ шалгаад хуудсаа шинэчилнэ үү."; }
+let logoSrc = "logo.jpg";
 function applyLogo() {
   const mid = document.getElementById("logo-mid");
   if (logoSrc) {
@@ -127,6 +127,7 @@ document.getElementById("logo-file").addEventListener("change", (e) => {
   r.readAsDataURL(f);
 });
 document.getElementById("logo-center").addEventListener("change", applyLogo);
+applyLogo();
 document.getElementById("btn-print").addEventListener("click", () => window.print());
 </script>
 </body>
