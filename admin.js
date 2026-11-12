@@ -64,6 +64,23 @@ function setupSchoolMap() {
   setTimeout(() => adminMap.map.invalidateSize(), 150);
 }
 
+async function searchSchoolLoc() {
+  const q = $("loc-search").value.trim();
+  if (!q) return;
+  setMsg("msg-loc", "Хайж байна...");
+  try {
+    const found = await geocode(q);
+    if (!found.length) {
+      setMsg("msg-loc", "Хаяг олдсонгүй. Газрын зургийг гараараа томруулж товшино уу.", "error");
+      return;
+    }
+    adminMap.map.setView([parseFloat(found[0].lat), parseFloat(found[0].lon)], 16);
+    setMsg("msg-loc", "Олдлоо. Одоо сургуулийн яг байрлал дээр товшино уу.");
+  } catch (_) {
+    setMsg("msg-loc", "Хайлт ажиллахгүй байна. Газрын зургийг гараараа томруулж товшино уу.", "error");
+  }
+}
+
 async function saveSchoolLoc() {
   if (!schoolPoint) {
     setMsg("msg-loc", "Эхлээд газрын зураг дээр сургуулиа товшино уу.", "error");
@@ -179,7 +196,7 @@ async function loadDocs() {
         el("div", {},
           el("strong", {}, d.title),
           el("div", { class: "muted" },
-            fmtDate(d.created_at) + (d.deadline ? " · хугацаа: " + d.deadline : "") + (d.kind === "commute" ? " · гэр–ажлын зам: " + (MODES[d.commute_mode] || "") : d.audience && d.audience.length ? " · " + d.audience.join(", ") : " · бүх ажилтан") + (d.image_url ? " · постертой" : "") + (d.active ? "" : " · идэвхгүй"))
+            fmtDate(d.created_at) + " · " + (KIND_LABELS[d.kind] || "Ерөнхий") + (d.deadline ? " · хугацаа: " + d.deadline : "") + (d.kind === "commute" ? " · гэр–ажлын зам: " + (MODES[d.commute_mode] || "") : d.audience && d.audience.length ? " · " + d.audience.join(", ") : " · бүх ажилтан") + (d.image_url ? " · постертой" : "") + (d.active ? "" : " · идэвхгүй"))
         ),
         el("div", { class: "row", style: "margin:0" },
           el("button", { type: "button", onclick: () => showQr(d) }, "QR"),
@@ -198,13 +215,34 @@ async function toggleActive(d) {
   await loadDocs();
 }
 
+// Том зургийг автоматаар жижигрүүлж JPEG болгоно (2 МБ-аас бага болтол)
+async function shrinkImage(file) {
+  const bmp = await createImageBitmap(file);
+  let scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+  for (let i = 0; i < 6; i++) {
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * scale);
+    c.height = Math.round(bmp.height * scale);
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(bmp, 0, 0, c.width, c.height);
+    for (const q of [0.88, 0.78, 0.68]) {
+      const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", q));
+      if (blob && blob.size <= 1.8 * 1024 * 1024) return blob;
+    }
+    scale *= 0.8;
+  }
+  throw new Error("Зургийг жижигрүүлж чадсангүй. Өөр зураг сонгоно уу.");
+}
+
 async function uploadPoster(file) {
   if (!file) return null;
-  if (file.size > 2 * 1024 * 1024) throw new Error("Зураг 2 МБ-аас их байна.");
-  const ext = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" }[file.type];
-  if (!ext) throw new Error("Зөвхөн PNG, JPG, WebP зураг оруулна уу.");
+  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) throw new Error("Зөвхөн PNG, JPG, WebP зураг оруулна уу.");
+  let body = file, type = file.type, ext = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" }[file.type];
+  if (file.size > 1.8 * 1024 * 1024) { body = await shrinkImage(file); type = "image/jpeg"; ext = "jpg"; }
   const path = `${me.school_id}/${crypto.randomUUID()}.${ext}`;
-  const { error } = await sb.storage.from("posters").upload(path, file, { contentType: file.type });
+  const { error } = await sb.storage.from("posters").upload(path, body, { contentType: type });
   if (error) throw error;
   return sb.storage.from("posters").getPublicUrl(path).data.publicUrl;
 }
@@ -349,6 +387,8 @@ $("form-login").addEventListener("submit", async (e) => {
 });
 $("form-doc").addEventListener("submit", onCreateDoc);
 $("btn-save-loc").addEventListener("click", saveSchoolLoc);
+$("btn-loc-search").addEventListener("click", searchSchoolLoc);
+$("loc-search").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); searchSchoolLoc(); } });
 $("doc-kind").addEventListener("change", () => show("mode-wrap", $("doc-kind").value === "commute"));
 $("btn-csv").addEventListener("click", downloadCsv);
 $("btn-print").addEventListener("click", () => window.print());

@@ -242,3 +242,8 @@ function renderRich(container, text) {
     container.append(node);
   });
 }
+
+const KIND_LABELS = {
+  general: "Ерөнхий", daily: "Өдөр тутмын", initial: "Анхан шатны", pre: "Урьдчилсан",
+  repeat: "Давтан", extra: "Ээлжит бус", commute: "Гэр–ажлын зам"
+};

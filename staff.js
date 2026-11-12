@@ -94,7 +94,7 @@ async function loadMyDocs(route) {
       el("div", { class: "doc-link" },
         el("div", {},
           el("strong", {}, d.title),
-          el("div", { class: "muted" }, d.kind === "commute" ? "Гэр–ажлын зам" : "Ерөнхий")),
+          el("div", { class: "muted" }, KIND_LABELS[d.kind] || "Ерөнхий")),
         el("div", { class: "row", style: "margin:0" },
           el("span", { class: "badge " + (done ? "ok" : "no") }, done ? "Зурсан" : "Зураагүй"),
           el("a", { class: "btn", href: "index.html?doc=" + encodeURIComponent(d.id) }, done ? "Харах" : "Унших"))

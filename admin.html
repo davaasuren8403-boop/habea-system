@@ -41,7 +41,12 @@
         <input id="doc-title" type="text" required>
         <label for="doc-kind">Төрөл</label>
         <select id="doc-kind">
-          <option value="general">Ердийн зааварчилгаа</option>
+          <option value="daily">Өдөр тутмын зааварчилгаа</option>
+          <option value="initial">Анхан шатны зааварчилгаа</option>
+          <option value="pre">Урьдчилсан зааварчилгаа</option>
+          <option value="repeat">Давтан зааварчилгаа</option>
+          <option value="extra">Ээлжит бус зааварчилгаа</option>
+          <option value="general">Бусад (ерөнхий) зааварчилгаа</option>
           <option value="commute">Гэр–ажлын замын заавар (тээврийн хэлбэрээр)</option>
         </select>
         <div id="mode-wrap" hidden>
@@ -56,7 +61,7 @@
         <label for="doc-body">Зааварчилгааны текст</label>
         <textarea id="doc-body" required></textarea>
         <p class="muted">Хэлбэржүүлэлт: БҮХЭЛДЭЭ ТОМ ҮСГЭЭР бичсэн мөр = гарчиг; мөрийн эхэнд "* " = цэгтэй жагсаалт; **ийм** = тод үсэг. Хоосон мөр = завсарлага.</p>
-        <label for="doc-image">Постер, зураг (заавал биш, PNG/JPG/WebP, 2 МБ хүртэл)</label>
+        <label for="doc-image">Постер, зураг (заавал биш, PNG/JPG/WebP, том зургийг автоматаар жижигрүүлнэ)</label>
         <input id="doc-image" type="file" accept="image/png,image/jpeg,image/webp">
         <label>Хэнд хамаарах вэ? <span class="muted">(юу ч сонгохгүй бол бүх ажилтан)</span></label>
         <div id="doc-audience" class="groups"></div>
