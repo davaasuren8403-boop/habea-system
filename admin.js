@@ -227,12 +227,55 @@ async function loadDocs() {
         el("div", { class: "row", style: "margin:0" },
           el("button", { type: "button", onclick: () => showQr(d) }, "QR"),
           el("button", { type: "button", class: "secondary", onclick: () => showReport(d) }, "Тайлан"),
+          el("button", { type: "button", class: "secondary", onclick: () => startEdit(d) }, "Засах"),
           el("button", { type: "button", class: "secondary", onclick: () => toggleActive(d) },
             d.active ? "Идэвхгүй болгох" : "Идэвхжүүлэх")
         )
       )
     );
   }
+}
+
+let editingDoc = null;
+
+function endEdit() {
+  editingDoc = null;
+  $("form-doc").reset();
+  for (const id of ["doc-kind", "doc-freq", "doc-mode"]) $(id).disabled = false;
+  show("edit-banner", false);
+  show("btn-doc-cancel", false);
+  $("btn-doc-save").textContent = "Хадгалах";
+  show("mode-wrap", false);
+  show("target-wrap", false);
+  show("aud-wrap");
+  buildAudience();
+  buildTargets();
+}
+
+function startEdit(d) {
+  editingDoc = d;
+  $("doc-title").value = d.title;
+  $("doc-kind").value = d.kind;
+  $("doc-freq").value = d.frequency;
+  $("doc-mode").value = d.commute_mode || "walk";
+  $("doc-body").value = d.body || "";
+  $("doc-deadline").value = d.deadline || "";
+  show("mode-wrap", d.kind === "commute");
+  show("target-wrap", d.kind === "trip");
+  show("aud-wrap", d.kind !== "trip");
+  buildAudience();
+  buildTargets();
+  const aud = new Set(d.audience || []);
+  document.querySelectorAll("#doc-audience input").forEach((i) => { i.checked = aud.has(i.value); });
+  const tg = new Set(d.target_users || []);
+  document.querySelectorAll("#doc-targets input").forEach((i) => { i.checked = tg.has(i.value); });
+  for (const id of ["doc-kind", "doc-freq", "doc-mode"]) $(id).disabled = true;
+  $("edit-banner").textContent = "Засварлаж байна: " + d.title + (d.image_url ? " (постер хэвээр үлдэнэ, шинэ зураг сонговол солигдоно)" : "") + ". Төрөл, давтамжийг өөрчилж болохгүй.";
+  show("edit-banner");
+  show("btn-doc-cancel");
+  $("btn-doc-save").textContent = "Өөрчлөлтийг хадгалах";
+  setMsg("msg-doc", "");
+  $("form-doc").scrollIntoView({ behavior: "smooth" });
 }
 
 async function toggleActive(d) {
@@ -280,6 +323,28 @@ async function onCreateDoc(e) {
     imageUrl = await uploadPoster($("doc-image").files[0]);
   } catch (err) {
     setMsg("msg-doc", translateError(err), "error");
+    return;
+  }
+  if (editingDoc) {
+    const d = editingDoc;
+    const aud = d.kind === "trip" ? [] : [...document.querySelectorAll("#doc-audience input:checked")].map((i) => i.value);
+    const upd = {
+      title: $("doc-title").value.trim(),
+      body: $("doc-body").value,
+      deadline: $("doc-deadline").value || null,
+      audience: aud.length ? aud : null
+    };
+    if (d.kind === "commute") upd.commute_mode = d.commute_mode;
+    if (d.kind === "trip") {
+      upd.target_users = [...document.querySelectorAll("#doc-targets input:checked")].map((i) => i.value);
+      if (!upd.target_users.length) { setMsg("msg-doc", "Явах ажилтнуудыг сонгоно уу.", "error"); return; }
+    }
+    if (imageUrl) upd.image_url = imageUrl;
+    const { error } = await sb.from("documents").update(upd).eq("id", d.id);
+    if (error) { setMsg("msg-doc", translateError(error), "error"); return; }
+    endEdit();
+    setMsg("msg-doc", "Өөрчлөлт хадгалагдлаа.");
+    await loadDocs();
     return;
   }
   const kind = $("doc-kind").value;
@@ -516,6 +581,7 @@ $("form-login").addEventListener("submit", async (e) => {
 });
 $("form-doc").addEventListener("submit", onCreateDoc);
 $("btn-school-qr").addEventListener("click", showSchoolQr);
+$("btn-doc-cancel").addEventListener("click", endEdit);
 $("btn-loc-me").addEventListener("click", useMyLocForSchool);
 $("btn-save-loc").addEventListener("click", saveSchoolLoc);
 $("btn-loc-search").addEventListener("click", searchSchoolLoc);

@@ -40,6 +40,7 @@
 
     <section class="card no-print">
       <h2>Шинэ зааварчилгаа нэмэх</h2>
+      <div id="edit-banner" class="msg" hidden></div>
       <form id="form-doc">
         <label for="doc-title">Гарчиг</label>
         <input id="doc-title" type="text" required>
@@ -83,7 +84,7 @@
         </div>
         <label for="doc-deadline">Танилцаж дуусах хугацаа (заавал биш)</label>
         <input id="doc-deadline" type="date">
-        <div class="row"><button type="submit">Хадгалах</button></div>
+        <div class="row"><button id="btn-doc-save" type="submit">Хадгалах</button><button id="btn-doc-cancel" class="secondary" type="button" hidden>Засварыг болих</button></div>
       </form>
       <div id="msg-doc" class="msg" hidden></div>
     </section>
