@@ -247,3 +247,18 @@ const KIND_LABELS = {
   general: "Ерөнхий", daily: "Өдөр тутмын", initial: "Анхан шатны", pre: "Урьдчилсан",
   repeat: "Давтан", extra: "Ээлжит бус", commute: "Гэр–ажлын зам"
 };
+
+// Төхөөрөмжийн GPS/байршлыг авна (хэрэглэгч зөвшөөрөл өгнө). Утсан дээр нарийвчлал өндөр.
+function getMyLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject(new Error("Таны хөтөч байршил авахыг дэмжихгүй байна.")); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy }),
+      (err) => reject(new Error(
+        err.code === 1 ? "Байршил авахыг зөвшөөрөөгүй байна. Хөтчийн хаягийн мөрний хажууд байршлын зөвшөөрлийг «Зөвшөөрөх» болгоно уу."
+        : err.code === 3 ? "Байршил авах хугацаа хэтэрлээ. Дахин оролдоно уу."
+        : "Байршлыг тодорхойлж чадсангүй. Газрын зураг дээр гараараа товшино уу.")),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  });
+}

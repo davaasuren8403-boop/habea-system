@@ -64,6 +64,19 @@ function setupSchoolMap() {
   setTimeout(() => adminMap.map.invalidateSize(), 150);
 }
 
+async function useMyLocForSchool() {
+  setMsg("msg-loc", "Байршил тодорхойлж байна...");
+  try {
+    const p = await getMyLocation();
+    schoolPoint = { lat: p.lat, lng: p.lng };
+    adminMap.setPoint(p.lat, p.lng);
+    adminMap.map.setView([p.lat, p.lng], 17);
+    setMsg("msg-loc", "Одоогийн байршлыг сонголоо. Зөв бол «Сургуулийн байршлыг хадгалах» дарна уу.");
+  } catch (err) {
+    setMsg("msg-loc", err.message, "error");
+  }
+}
+
 async function searchSchoolLoc() {
   const q = $("loc-search").value.trim();
   if (!q) return;
@@ -386,6 +399,7 @@ $("form-login").addEventListener("submit", async (e) => {
   await route();
 });
 $("form-doc").addEventListener("submit", onCreateDoc);
+$("btn-loc-me").addEventListener("click", useMyLocForSchool);
 $("btn-save-loc").addEventListener("click", saveSchoolLoc);
 $("btn-loc-search").addEventListener("click", searchSchoolLoc);
 $("loc-search").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); searchSchoolLoc(); } });

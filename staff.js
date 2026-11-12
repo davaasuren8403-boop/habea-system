@@ -148,6 +148,19 @@ async function onSearch() {
   }
 }
 
+async function onMyLoc() {
+  setMsg("msg-route", "Байршил тодорхойлж байна...");
+  try {
+    const p = await getMyLocation();
+    homePoint = { lat: p.lat, lng: p.lng };
+    routeMap.setPoint(p.lat, p.lng);
+    routeMap.map.setView([p.lat, p.lng], 15);
+    setMsg("msg-route", "Одоогийн байршлыг гэр болгон сонголоо. Буруу бол газрын зураг дээр товшиж засна уу. Хадгалахад зөвхөн ~1 км-ийн нарийвчлалтай бүс хадгална.");
+  } catch (err) {
+    setMsg("msg-route", err.message, "error");
+  }
+}
+
 async function onRouteSave(e) {
   e.preventDefault();
   if (!currentSchool || currentSchool.work_lat == null) {
@@ -354,6 +367,7 @@ for (const g of STAFF_GROUPS) $("join-group").append(el("option", { value: g }, 
 $("join-group").insertBefore(el("option", { value: "", selected: "selected", disabled: "disabled" }, "Сонгоно уу"), $("join-group").firstChild);
 
 $("form-route").addEventListener("submit", onRouteSave);
+$("btn-my-loc").addEventListener("click", onMyLoc);
 $("btn-search").addEventListener("click", onSearch);
 $("route-search").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); onSearch(); } });
 $("btn-change-route").addEventListener("click", () => showRouteSetup(true));
