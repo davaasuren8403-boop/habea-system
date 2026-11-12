@@ -27,7 +27,7 @@
       <input id="email" type="email" autocomplete="email" required>
       <label for="password">Нууц үг</label>
       <input id="password" type="password" autocomplete="current-password" minlength="6" required>
-      <div class="row"><button id="btn-auth" type="submit">Нэвтрэх</button></div>
+      <div class="row"><button id="btn-auth" type="submit">Нэвтрэх</button><button id="btn-forgot" class="secondary" type="button">Нууц үг мартсан</button></div>
     </form>
     <div id="msg-auth" class="msg" hidden></div>
   </section>
@@ -50,6 +50,17 @@
     <div id="msg-join" class="msg" hidden></div>
   </section>
 
+  <!-- Шинэ нууц үг (имэйлийн холбоосоор орсон үед) -->
+  <section id="view-reset" class="card" hidden>
+    <h2>Шинэ нууц үг тохируулах</h2>
+    <form id="form-reset">
+      <label for="new-password">Шинэ нууц үг</label>
+      <input id="new-password" type="password" autocomplete="new-password" required minlength="6">
+      <div class="row"><button type="submit">Хадгалах</button></div>
+    </form>
+    <div id="msg-reset" class="msg" hidden></div>
+  </section>
+
   <!-- Нүүр: миний зам, миний зааварчилгаанууд -->
   <section id="view-home" class="card" hidden>
     <h2>Миний гэр–ажлын зам</h2>
@@ -57,6 +68,8 @@
     <div class="row">
       <button id="btn-change-route" class="secondary" type="button">Маршрут өөрчлөх</button>
     </div>
+    <label for="my-group">Миний ажлын бүлэг (алдаатай бол энд зас)</label>
+    <select id="my-group"></select>
     <h2 style="margin-top:22px">Миний зааварчилгаанууд</h2>
     <div id="bundle-cta" hidden>
       <button id="btn-bundle" type="button"></button>

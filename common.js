@@ -1,7 +1,7 @@
 // Ерөнхий туслах функцүүд (index.html, admin.html хоёрт хамтдаа ашиглана)
 const cfg = window.APP_CONFIG || {};
 const configured = cfg.SUPABASE_URL && !cfg.SUPABASE_URL.includes("YOUR-PROJECT");
-const sb = configured ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY) : null;
+const sb = configured ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true } }) : null;
 
 const STAFF_GROUPS = [
   "Захирал", "Сургалтын менежер", "Багш", "Бага ангийн багш", "Биеийн тамирын багш",
@@ -78,10 +78,10 @@ class SignaturePad {
     }
   }
   resize() {
-    // Дотоод нягтрал тогтмол: 600x240 (PNG жижиг хэвээр үлдэнэ)
-    this.canvas.width = 600;
-    this.canvas.height = 240;
-    this.ctx.lineWidth = 3;
+    // Дотоод нягтрал тогтмол: 300x120 (PNG ~3-4 КБ, сан хэмнэнэ)
+    this.canvas.width = 300;
+    this.canvas.height = 120;
+    this.ctx.lineWidth = 2.2;
     this.ctx.lineCap = "round";
     this.ctx.lineJoin = "round";
     this.ctx.strokeStyle = "#111";
@@ -266,4 +266,16 @@ function getMyLocation() {
 // Улаанбаатарын өнөөдрийн огноо (YYYY-MM-DD)
 function todayUB() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ulaanbaatar" }).format(new Date());
+}
+
+// "same:<id>" гэж лавласан гарын үсгийг жинхэнэ зургаар солино (сан хэмнэх зорилгоор нэг өдөр нэг удаа хадгалдаг)
+async function resolveSignatures(acks) {
+  const need = [...new Set(acks.filter((a) => a.signature && a.signature.startsWith("same:")).map((a) => a.signature.slice(5)))];
+  if (!need.length) return acks;
+  const { data } = await sb.from("acknowledgements").select("id, signature").in("id", need);
+  const map = new Map((data || []).map((r) => [r.id, r.signature]));
+  for (const a of acks) {
+    if (a.signature && a.signature.startsWith("same:")) a.signature = map.get(a.signature.slice(5)) || "";
+  }
+  return acks;
 }

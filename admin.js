@@ -309,6 +309,18 @@ function showQr(d) {
   $("view-qr").scrollIntoView({ behavior: "smooth" });
 }
 
+function showSchoolQr() {
+  show("view-report", false);
+  show("view-daily", false);
+  const url = new URL("index.html?code=" + encodeURIComponent(school.join_code), location.href).href;
+  $("qr-title").textContent = (school.name || "Сургууль") + ": бүх ажилтны нэгдсэн QR";
+  $("qr").replaceChildren();
+  new QRCode($("qr"), { text: url, width: 260, height: 260, correctLevel: QRCode.CorrectLevel.M });
+  $("qr-link").textContent = url;
+  show("view-qr");
+  $("view-qr").scrollIntoView({ behavior: "smooth" });
+}
+
 async function showReport(d, day) {
   show("view-qr", false);
   show("view-daily", false);
@@ -320,6 +332,7 @@ async function showReport(d, day) {
     setMsg("msg-global", translateError(profRes.error || ackRes.error), "error");
     return;
   }
+  await resolveSignatures(ackRes.data);
   const isDaily = d.frequency === "daily";
   day = day || todayUB();
   $("report-date").value = day;
@@ -352,7 +365,7 @@ async function showReport(d, day) {
   const body = $("report-body");
   body.replaceChildren();
   rows.forEach((r, i) => {
-    const sig = r.ack ? el("img", { class: "sig", src: r.ack.signature, alt: "гарын үсэг" }) : "";
+    const sig = r.ack && r.ack.signature ? el("img", { class: "sig", src: r.ack.signature, alt: "гарын үсэг" }) : "";
     body.append(
       el("tr", {},
         el("td", {}, i + 1),
@@ -389,6 +402,7 @@ async function showDaily() {
   ]);
   const err = profRes.error || ackRes.error || docRes.error;
   if (err) { setMsg("msg-global", translateError(err), "error"); return; }
+  await resolveSignatures(ackRes.data);
   const docs = new Map(docRes.data.map((d) => [d.id, d]));
   const usedIds = [...new Set(ackRes.data.map((a) => a.document_id))];
   const cols = usedIds.map((id) => docs.get(id)).filter(Boolean)
@@ -478,6 +492,7 @@ $("form-login").addEventListener("submit", async (e) => {
   await route();
 });
 $("form-doc").addEventListener("submit", onCreateDoc);
+$("btn-school-qr").addEventListener("click", showSchoolQr);
 $("btn-loc-me").addEventListener("click", useMyLocForSchool);
 $("btn-save-loc").addEventListener("click", saveSchoolLoc);
 $("btn-loc-search").addEventListener("click", searchSchoolLoc);

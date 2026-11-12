@@ -11,12 +11,14 @@ let homePoint = null;
 let hasRoute = false;
 let bundleDocs = [];
 let bundlePad = null;
+let recovering = false;
 
 function hideViews() {
-  for (const id of ["view-auth", "view-join", "view-doc", "view-home", "view-route", "view-bundle"]) show(id, false);
+  for (const id of ["view-auth", "view-join", "view-doc", "view-home", "view-route", "view-bundle", "view-reset"]) show(id, false);
 }
 
 async function route() {
+  if (recovering) return;
   hideViews();
   setMsg("msg-global", "");
   if (!sb) {
@@ -50,6 +52,15 @@ async function route() {
 }
 
 // ---- Нүүр: миний зам + миний зааварчилгаанууд ----
+async function onMyGroup() {
+  const g = $("my-group").value;
+  const { error } = await sb.rpc("set_staff_group", { p_user: currentUser.id, p_group: g });
+  if (error) { setMsg("msg-global", translateError(error), "error"); return; }
+  currentProfile.staff_group = g;
+  setMsg("msg-global", "Ажлын бүлэг шинэчлэгдлээ.");
+  await loadHome();
+}
+
 async function loadHome() {
   const [routeRes, schoolRes] = await Promise.all([
     sb.from("commute_routes").select("*").eq("user_id", currentUser.id).maybeSingle(),
@@ -64,6 +75,12 @@ async function loadHome() {
   const r = routeRes.data;
   $("route-summary").textContent =
     `${MODES[r.mode] || r.mode} · ойролцоогоор ${fmtKm(r.distance_m)} · ${r.duration_min} минут`;
+  const sel = $("my-group");
+  if (!sel.options.length) {
+    for (const g of STAFF_GROUPS) sel.append(el("option", { value: g }, g));
+    sel.addEventListener("change", onMyGroup);
+  }
+  sel.value = currentProfile.staff_group || "";
   show("view-home");
   await loadMyDocs(r);
 }
@@ -360,13 +377,27 @@ async function onBundleSubmit() {
   }
   $("btn-bundle-submit").disabled = true;
   const sig = bundlePad.toDataURL();
-  const { error } = await sb.from("acknowledgements").insert(bundleDocs.map((d) => ({ document_id: d.id, signature: sig })));
+  // Гарын үсгийг зөвхөн эхний зааварт бүтнээр хадгална, бусад нь түүнийг лавлана (сан хэмнэнэ)
+  const first = await sb.from("acknowledgements").insert({ document_id: bundleDocs[0].id, signature: sig }).select("id").single();
+  let error = first.error;
+  if (!error && bundleDocs.length > 1) {
+    const rest = await sb.from("acknowledgements").insert(
+      bundleDocs.slice(1).map((d) => ({ document_id: d.id, signature: "same:" + first.data.id })));
+    error = rest.error;
+  }
   $("btn-bundle-submit").disabled = false;
   if (error) { setMsg("msg-bundle", translateError(error), "error"); return; }
   show("view-bundle", false);
   await loadHome();
   setMsg("msg-global", "Бүх зааварчилгаанд гарын үсэг амжилттай бүртгэгдлээ. Баярлалаа!");
 }
+
+try {
+  const qc = new URLSearchParams(location.search).get("code");
+  if (qc) localStorage.setItem("habea_code", qc);
+  const saved = localStorage.getItem("habea_code");
+  if (saved) $("join-code").value = saved;
+} catch (_) {}
 
 for (const g of STAFF_GROUPS) $("join-group").append(el("option", { value: g }, g));
 $("join-group").insertBefore(el("option", { value: "", selected: "selected", disabled: "disabled" }, "Сонгоно уу"), $("join-group").firstChild);
@@ -386,6 +417,24 @@ $("btn-back").addEventListener("click", () => { location.href = location.pathnam
 $("tab-login").addEventListener("click", () => setAuthMode("login"));
 $("tab-register").addEventListener("click", () => setAuthMode("register"));
 $("form-auth").addEventListener("submit", onAuth);
+$("btn-forgot").addEventListener("click", async () => {
+  const email = $("email").value.trim();
+  if (!email) { setMsg("msg-auth", "Эхлээд имэйлээ бичнэ үү, дараа нь «Нууц үг мартсан» дарна уу.", "error"); return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+  setMsg("msg-auth", error ? translateError(error) : "Нууц үг шинэчлэх холбоосыг имэйлээр илгээлээ. Имэйлээ шалгана уу.", error ? "error" : undefined);
+});
+$("form-reset").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const pw = $("new-password").value;
+  if (pw.length < 6) { setMsg("msg-reset", "Нууц үг дор хаяж 6 тэмдэгт байна.", "error"); return; }
+  const { error } = await sb.auth.updateUser({ password: pw });
+  if (error) { setMsg("msg-reset", translateError(error), "error"); return; }
+  recovering = false;
+  await route();
+});
+if (sb) sb.auth.onAuthStateChange((ev) => {
+  if (ev === "PASSWORD_RECOVERY") { recovering = true; hideViews(); show("view-reset"); }
+});
 $("form-join").addEventListener("submit", onJoin);
 $("btn-clear").addEventListener("click", () => pad && pad.clear());
 $("btn-submit").addEventListener("click", onSubmit);
