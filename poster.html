@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QR постер</title>
+<style>
+  :root { --navy:#1d3f78; --gold:#f2a900; --ink:#16284a; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { margin:0; font-family: system-ui, "Segoe UI", Arial, sans-serif; background:#e9eeeb; color:var(--ink); }
+  .tools { max-width:210mm; margin:12px auto; padding:12px 16px; background:#fff; border-radius:10px; display:flex; gap:10px 16px; flex-wrap:wrap; align-items:center; font-size:.9rem; }
+  .tools input[type=text] { padding:6px 8px; border:1px solid #bbb; border-radius:6px; min-width:260px; }
+  .tools button { padding:8px 16px; border:0; border-radius:8px; background:var(--navy); color:#fff; font-size:1rem; cursor:pointer; }
+  .page { position:relative; width:210mm; height:297mm; margin:0 auto 20px; background:linear-gradient(#fff,#f1f5fb); overflow:hidden; display:flex; flex-direction:column; align-items:center; text-align:center; }
+  .wave-top { position:absolute; left:0; top:0; width:100%; height:26mm; }
+  .wave-bot { position:absolute; left:0; bottom:0; width:100%; height:44mm; }
+  .head { position:relative; z-index:2; margin-top:15mm; width:100%; padding:0 14mm; display:flex; align-items:center; gap:6mm; text-align:left; }
+  .logo { width:36mm; height:36mm; flex:none; display:flex; align-items:center; justify-content:center; }
+  .logo img { max-width:36mm; max-height:36mm; object-fit:contain; }
+  .logo .ph { width:34mm; height:34mm; border:2px dashed #8aa; border-radius:50%; color:#678; font-size:.75rem; display:flex; align-items:center; justify-content:center; text-align:center; padding:4px; }
+  .org { flex:1; }
+  .org b { display:block; font-size:12.5pt; letter-spacing:.2px; text-transform:uppercase; color:var(--navy); line-height:1.3; }
+  .org i { display:block; margin-top:2mm; font-size:11pt; color:#b8860b; }
+  .title { position:relative; z-index:2; margin:7mm 0 0; padding:0 12mm; }
+  .title .t1 { font-size:34pt; font-weight:900; color:var(--navy); line-height:1.05; }
+  .title .t2 { display:inline-block; margin:2mm 0; padding:1mm 7mm; font-size:30pt; font-weight:900; color:var(--ink); background:#f8d977; border-radius:3mm; }
+  .title .t3 { font-size:23pt; font-weight:900; color:var(--navy); line-height:1.1; }
+  .tag { position:relative; z-index:2; margin-top:4mm; font-size:10.5pt; letter-spacing:1.5px; color:#3a5890; display:flex; align-items:center; gap:4mm; }
+  .tag:before, .tag:after { content:""; width:28mm; height:1px; background:#3a5890; }
+  .mid { position:relative; z-index:2; margin-top:7mm; width:100%; padding:0 10mm; display:grid; grid-template-columns:1fr 78mm 1fr; align-items:center; gap:4mm; }
+  .col { display:flex; flex-direction:column; gap:7mm; }
+  .item { display:flex; align-items:center; gap:3mm; text-align:left; }
+  .col.r .item { flex-direction:row; }
+  .ico { width:15mm; height:15mm; flex:none; border-radius:50%; background:var(--navy); display:flex; align-items:center; justify-content:center; }
+  .ico svg { width:8.5mm; height:8.5mm; fill:none; stroke:#fff; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .item b { display:block; font-size:9.5pt; color:var(--navy); text-transform:uppercase; line-height:1.15; }
+  .item span { font-size:8.5pt; color:#4a5f86; line-height:1.2; }
+  .qrwrap { position:relative; width:78mm; height:78mm; background:#fff; padding:3mm; border-radius:3mm; box-shadow:0 0 0 1px #d7dfee; display:flex; align-items:center; justify-content:center; }
+  #qr img, #qr canvas { width:72mm !important; height:72mm !important; display:block; }
+  .center-logo { position:absolute; left:50%; top:50%; width:17mm; height:17mm; transform:translate(-50%,-50%); background:#fff; border-radius:50%; padding:1mm; display:none; align-items:center; justify-content:center; }
+  .center-logo img { max-width:100%; max-height:100%; object-fit:contain; }
+  .banner { position:relative; z-index:2; margin-top:6mm; width:112mm; background:var(--navy); color:#fff; border-radius:4mm; padding:3.5mm 6mm; display:flex; align-items:center; gap:5mm; text-align:left; }
+  .banner svg { width:11mm; height:15mm; flex:none; fill:none; stroke:#fff; stroke-width:2; }
+  .banner b { display:block; font-size:14pt; }
+  .banner span { font-size:10pt; opacity:.95; }
+  .slogan { position:relative; z-index:2; margin-top:auto; margin-bottom:34mm; font-size:15pt; font-style:italic; color:#2d5aa0; line-height:1.3; }
+  .values { position:absolute; z-index:3; left:12mm; right:12mm; bottom:9mm; display:flex; justify-content:space-around; color:#fff; font-size:11pt; font-weight:700; letter-spacing:1px; }
+  @media print {
+    body { background:#fff; }
+    .tools { display:none; }
+    .page { margin:0; }
+    @page { size: A4; margin:0; }
+  }
+</style>
+</head>
+<body>
+<div class="tools">
+  <label>Сургуулийн лого: <input id="logo-file" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"></label>
+  <label><input id="logo-center" type="checkbox" checked> Логог QR-ын голд бас тавих</label>
+  <label>Байгууллагын нэр: <input id="org-in" type="text"></label>
+  <label>Уриа: <input id="slogan-in" type="text"></label>
+  <button id="btn-print" type="button">Хэвлэх / PDF</button>
+</div>
+<div class="page" id="page">
+  <svg class="wave-top" viewBox="0 0 210 26" preserveAspectRatio="none"><path d="M0 0H210V10C160 22 120 4 70 12C40 17 20 22 0 18Z" fill="#1d3f78"/><path d="M0 18C20 22 40 17 70 12C120 4 160 22 210 10V13C160 25 120 7 70 15C40 20 20 25 0 21Z" fill="#f2a900"/></svg>
+  <div class="head">
+    <div class="logo" id="logo-top"><div class="ph">Лого энд гарна</div></div>
+    <div class="org"><b id="org">Сургууль</b><i id="slogan"></i></div>
+  </div>
+  <div class="title">
+    <div class="t1">БҮХ АЖИЛТНЫ</div>
+    <div class="t2">ӨДӨР ТУТМЫН</div>
+    <div class="t3">ХАБЭА-НЫ ЗААВАРЧИЛГАА</div>
+  </div>
+  <div class="tag">АЮУЛГҮЙ АЖИЛЛАА · ЭРҮҮЛ ОРЧНЫГ БҮТЭЭЕ</div>
+  <div class="mid">
+    <div class="col">
+      <div class="item"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.500-1-8-4-8-9V6z"/><path d="M8.500 12l2.500 2.500 4.500-5"/></svg></div><div><b>Аюулгүй ажлын байр</b><span>Эрсдэлээс сэргийлье</span></div></div>
+      <div class="item"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3c3 4 5 6.500 5 10a5 5 0 0 1-10 0c0-3.500 2-6 5-10z"/></svg></div><div><b>Эрүүл ахуй</b><span>Цэвэр орчин, эрүүл хүн</span></div></div>
+      <div class="item"><div class="ico"><svg viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M10 18h4"/></svg></div><div><b>Өдөр бүр</b><span>Заавар уншиж, гарын үсэг зурна</span></div></div>
+    </div>
+    <div class="qrwrap"><div id="qr"></div><div class="center-logo" id="logo-mid"></div></div>
+    <div class="col r">
+      <div class="item"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-6 1-9z"/></svg></div><div><b>Галын аюулгүй байдал</b><span>Сэрэмжтэй байж урьдчилан сэргийлье</span></div></div>
+      <div class="item"><div class="ico"><svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V5h6v2M12 11v6M9 14h6"/></svg></div><div><b>Анхны тусламж</b><span>Мэдлэгтэй байж бэлэн байя</span></div></div>
+      <div class="item"><div class="ico"><svg viewBox="0 0 24 24"><path d="M5 12a7 7 0 0 1 12-4M19 12a7 7 0 0 1-12 4M17 4v4h-4M7 20v-4h4"/></svg></div><div><b>Хог хаягдал</b><span>Байгаль орчноо хамгаалья</span></div></div>
+    </div>
+  </div>
+  <div class="banner">
+    <svg viewBox="0 0 24 34"><rect x="3" y="2" width="18" height="30" rx="3"/><path d="M10 28h4"/></svg>
+    <div><b>QR КОДЫГ УНШУУЛНА УУ</b><span>Бүртгүүлж, ажлын бүлгээ сонгоод, зааварчилгаатай танилцаж гарын үсэг зурна уу.</span></div>
+  </div>
+  <div class="slogan" id="slogan2"></div>
+  <svg class="wave-bot" viewBox="0 0 210 44" preserveAspectRatio="none"><path d="M0 14C50 2 110 22 210 6V44H0Z" fill="#f2a900"/><path d="M0 18C50 6 110 26 210 10V44H0Z" fill="#1d3f78"/></svg>
+  <div class="values"><span>ХАМГААЛЬЯ</span><span>ХҮНДЭЛЬЕ</span><span>ХАМТДАА БҮТЭЭЕ</span></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const q = new URLSearchParams(location.search);
+const code = q.get("code") || "";
+const orgIn = document.getElementById("org-in"), sloIn = document.getElementById("slogan-in");
+orgIn.value = q.get("org") || "Хэнтий аймгийн Өмнөдэлгэр сумын Ерөнхий боловсролын сургууль";
+sloIn.value = q.get("slogan") || "Аюулгүй орчин – Аз жаргалтай сургууль";
+function texts() {
+  document.getElementById("org").textContent = orgIn.value;
+  document.getElementById("slogan").textContent = "“" + sloIn.value + "”";
+  document.getElementById("slogan2").textContent = sloIn.value;
+  document.title = "QR постер – " + orgIn.value;
+}
+orgIn.addEventListener("input", texts); sloIn.addEventListener("input", texts); texts();
+const url = new URL("index.html?code=" + encodeURIComponent(code), location.href).href;
+new QRCode(document.getElementById("qr"), { text: url, width: 400, height: 400, correctLevel: QRCode.CorrectLevel.H });
+let logoSrc = null;
+function applyLogo() {
+  const mid = document.getElementById("logo-mid");
+  if (logoSrc) {
+    document.getElementById("logo-top").replaceChildren(Object.assign(document.createElement("img"), { src: logoSrc }));
+    mid.replaceChildren(Object.assign(document.createElement("img"), { src: logoSrc }));
+  }
+  mid.style.display = logoSrc && document.getElementById("logo-center").checked ? "flex" : "none";
+}
+document.getElementById("logo-file").addEventListener("change", (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => { logoSrc = r.result; applyLogo(); };
+  r.readAsDataURL(f);
+});
+document.getElementById("logo-center").addEventListener("change", applyLogo);
+document.getElementById("btn-print").addEventListener("click", () => window.print());
+</script>
+</body>
+</html>
