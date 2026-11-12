@@ -581,6 +581,9 @@ $("form-login").addEventListener("submit", async (e) => {
 });
 $("form-doc").addEventListener("submit", onCreateDoc);
 $("btn-school-qr").addEventListener("click", showSchoolQr);
+$("btn-school-poster").addEventListener("click", () => {
+  window.open("poster.html?code=" + encodeURIComponent(school.join_code) + "&name=" + encodeURIComponent(school.name || ""), "_blank");
+});
 $("btn-doc-cancel").addEventListener("click", endEdit);
 $("btn-loc-me").addEventListener("click", useMyLocForSchool);
 $("btn-save-loc").addEventListener("click", saveSchoolLoc);
