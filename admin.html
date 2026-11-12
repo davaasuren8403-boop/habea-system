@@ -40,11 +40,19 @@
         <input id="doc-title" type="text" required>
         <label for="doc-body">Зааварчилгааны текст</label>
         <textarea id="doc-body" required></textarea>
+        <label>Хэнд хамаарах вэ? <span class="muted">(юу ч сонгохгүй бол бүх ажилтан)</span></label>
+        <div id="doc-audience" class="groups"></div>
         <label for="doc-deadline">Танилцаж дуусах хугацаа (заавал биш)</label>
         <input id="doc-deadline" type="date">
         <div class="row"><button type="submit">Хадгалах</button></div>
       </form>
       <div id="msg-doc" class="msg" hidden></div>
+    </section>
+
+    <section class="card no-print">
+      <h2>Ажилтнууд</h2>
+      <p class="muted">Ажилтан бүрийн ажлын бүлгийг эндээс засна.</p>
+      <div id="staff-list"></div>
     </section>
 
     <section class="card no-print">
@@ -75,7 +83,7 @@
       <div style="overflow-x:auto; margin-top:12px">
         <table>
           <thead>
-            <tr><th>#</th><th>Овог нэр</th><th>Албан тушаал</th><th>Төлөв</th><th>Огноо</th><th>Гарын үсэг</th></tr>
+            <tr><th>#</th><th>Овог нэр</th><th>Бүлэг</th><th>Албан тушаал</th><th>Төлөв</th><th>Огноо</th><th>Гарын үсэг</th></tr>
           </thead>
           <tbody id="report-body"></tbody>
         </table>

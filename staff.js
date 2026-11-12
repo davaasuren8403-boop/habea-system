@@ -55,7 +55,8 @@ async function loadDoc() {
   currentDoc = doc;
   $("doc-title").textContent = doc.title;
   $("doc-body").textContent = doc.body;
-  $("doc-meta").textContent = doc.deadline ? "Дуусах хугацаа: " + doc.deadline : "";
+  const aud = doc.audience && doc.audience.length ? "Хамрах бүлэг: " + doc.audience.join(", ") : "";
+  $("doc-meta").textContent = [doc.deadline ? "Дуусах хугацаа: " + doc.deadline : "", aud].filter(Boolean).join(" · ");
   show("view-doc");
 
   const { data: ack } = await sb
@@ -112,7 +113,8 @@ async function onJoin(e) {
   const { error } = await sb.rpc("join_school", {
     p_code: $("join-code").value,
     p_name: $("join-name").value,
-    p_position: $("join-position").value
+    p_position: $("join-position").value,
+    p_group: $("join-group").value
   });
   if (error) {
     setMsg("msg-join", translateError(error), "error");
@@ -143,6 +145,9 @@ async function onSubmit() {
   }
   await loadDoc();
 }
+
+for (const g of STAFF_GROUPS) $("join-group").append(el("option", { value: g }, g));
+$("join-group").insertBefore(el("option", { value: "", selected: "selected", disabled: "disabled" }, "Сонгоно уу"), $("join-group").firstChild);
 
 $("tab-login").addEventListener("click", () => setAuthMode("login"));
 $("tab-register").addEventListener("click", () => setAuthMode("register"));

@@ -3,6 +3,14 @@ const cfg = window.APP_CONFIG || {};
 const configured = cfg.SUPABASE_URL && !cfg.SUPABASE_URL.includes("YOUR-PROJECT");
 const sb = configured ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY) : null;
 
+const STAFF_GROUPS = [
+  "Захирал", "Сургалтын менежер", "Багш", "Бага ангийн багш", "Биеийн тамирын багш",
+  "Нярав", "Нягтлан бодогч", "Архив бичиг хэрэг", "Номын санч",
+  "Нийгмийн ажилтан", "Сэтгэлзүйч", "Эмч",
+  "Сантехникч", "Цахилгаанчин", "Усны машины жолооч", "Үйлчлэгч", "Сахиул",
+  "Дотуур байрны багш", "Дотуур байрны үйлчлэгч", "Дотуур байрны сахиул", "Бусад"
+];
+
 function $(id) {
   return document.getElementById(id);
 }

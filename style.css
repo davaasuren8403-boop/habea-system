@@ -31,7 +31,7 @@ header.top h1 { font-size: 1.15rem; margin: 0; }
 }
 .card h2 { font-size: 1.05rem; margin: 0 0 12px; }
 label { display: block; font-weight: 600; margin: 12px 0 4px; font-size: .92rem; }
-input[type=text], input[type=email], input[type=password], input[type=date], textarea {
+input[type=text], input[type=email], input[type=password], input[type=date], textarea, select {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border);
@@ -88,3 +88,6 @@ td img.sig { height: 40px; background: #fff; border: 1px solid var(--border); bo
   .card { border: 0; padding: 0; }
   td img.sig { height: 50px; }
 }
+
+.groups { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 6px 0 4px; }
+.groups label.check { margin: 0; font-weight: normal; }

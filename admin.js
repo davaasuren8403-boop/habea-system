@@ -39,7 +39,47 @@ async function route() {
     setMsg("msg-global", "Сургуулийн эрх идэвхгүй байна. Нийлүүлэгчтэй холбогдоно уу.", "error");
   }
   show("view-main");
+  buildAudience();
+  await loadStaff();
   await loadDocs();
+}
+
+function buildAudience() {
+  const box = $("doc-audience");
+  box.replaceChildren();
+  for (const g of STAFF_GROUPS) {
+    box.append(
+      el("label", { class: "check" },
+        el("input", { type: "checkbox", value: g }),
+        el("span", {}, g))
+    );
+  }
+}
+
+async function loadStaff() {
+  const { data, error } = await sb
+    .from("profiles").select("id, full_name, position, staff_group").eq("school_id", me.school_id).order("full_name");
+  if (error) {
+    setMsg("msg-global", translateError(error), "error");
+    return;
+  }
+  const list = $("staff-list");
+  list.replaceChildren();
+  for (const p of data) {
+    const sel = el("select", { style: "max-width:220px" },
+      el("option", { value: "" }, "— бүлэггүй —"),
+      ...STAFF_GROUPS.map((g) => el("option", { value: g }, g)));
+    sel.value = p.staff_group || "";
+    sel.addEventListener("change", async () => {
+      const { error: e2 } = await sb.rpc("set_staff_group", { p_user: p.id, p_group: sel.value });
+      setMsg("msg-global", e2 ? translateError(e2) : "Бүлэг хадгалагдлаа.", e2 ? "error" : "");
+    });
+    list.append(
+      el("div", { class: "doc-item" },
+        el("div", {}, el("strong", {}, p.full_name), el("div", { class: "muted" }, p.position || "")),
+        sel)
+    );
+  }
 }
 
 async function loadDocs() {
@@ -61,7 +101,7 @@ async function loadDocs() {
         el("div", {},
           el("strong", {}, d.title),
           el("div", { class: "muted" },
-            fmtDate(d.created_at) + (d.deadline ? " · хугацаа: " + d.deadline : "") + (d.active ? "" : " · идэвхгүй"))
+            fmtDate(d.created_at) + (d.deadline ? " · хугацаа: " + d.deadline : "") + (d.audience && d.audience.length ? " · " + d.audience.join(", ") : " · бүх ажилтан") + (d.active ? "" : " · идэвхгүй"))
         ),
         el("div", { class: "row", style: "margin:0" },
           el("button", { type: "button", onclick: () => showQr(d) }, "QR"),
@@ -86,14 +126,17 @@ async function onCreateDoc(e) {
     school_id: me.school_id,
     title: $("doc-title").value.trim(),
     body: $("doc-body").value,
-    deadline: $("doc-deadline").value || null
+    deadline: $("doc-deadline").value || null,
+    audience: [...document.querySelectorAll("#doc-audience input:checked")].map((i) => i.value)
   };
+  if (!payload.audience.length) payload.audience = null;
   const { error } = await sb.from("documents").insert(payload);
   if (error) {
     setMsg("msg-doc", translateError(error), "error");
     return;
   }
   $("form-doc").reset();
+  buildAudience();
   setMsg("msg-doc", "Хадгалагдлаа.");
   await loadDocs();
 }
@@ -116,7 +159,7 @@ function showQr(d) {
 async function showReport(d) {
   show("view-qr", false);
   const [profRes, ackRes] = await Promise.all([
-    sb.from("profiles").select("id, full_name, position").eq("school_id", me.school_id).order("full_name"),
+    sb.from("profiles").select("id, full_name, position, staff_group").eq("school_id", me.school_id).order("full_name"),
     sb.from("acknowledgements").select("*").eq("document_id", d.id)
   ]);
   if (profRes.error || ackRes.error) {
@@ -124,18 +167,22 @@ async function showReport(d) {
     return;
   }
   const acks = new Map(ackRes.data.map((a) => [a.user_id, a]));
-  const rows = profRes.data.map((p) => ({
-    name: p.full_name,
-    position: p.position || "",
-    ack: acks.get(p.id) || null
-  }));
+  const aud = d.audience && d.audience.length ? d.audience : null;
+  const rows = profRes.data
+    .filter((p) => !aud || aud.includes(p.staff_group) || acks.has(p.id))
+    .map((p) => ({
+      name: p.full_name,
+      group: p.staff_group || "",
+      position: p.position || "",
+      ack: acks.get(p.id) || null
+    }));
   rows.sort((a, b) => (a.ack ? 1 : 0) - (b.ack ? 1 : 0) || a.name.localeCompare(b.name, "mn"));
   currentReport = { doc: d, rows };
 
   const signed = rows.filter((r) => r.ack).length;
   $("report-title").textContent = d.title;
   $("report-summary").textContent =
-    `Нийт ${rows.length} ажилтнаас ${signed} нь гарын үсэг зурсан, ${rows.length - signed} нь зураагүй.`;
+    `${aud ? "Хамрах бүлэг: " + aud.join(", ") + ". " : ""}Нийт ${rows.length} ажилтнаас ${signed} нь гарын үсэг зурсан, ${rows.length - signed} нь зураагүй.`;
   const body = $("report-body");
   body.replaceChildren();
   rows.forEach((r, i) => {
@@ -144,6 +191,7 @@ async function showReport(d) {
       el("tr", {},
         el("td", {}, i + 1),
         el("td", {}, r.name),
+        el("td", {}, r.group),
         el("td", {}, r.position),
         el("td", {}, el("span", { class: "badge " + (r.ack ? "ok" : "no") }, r.ack ? "Зурсан" : "Зураагүй")),
         el("td", {}, r.ack ? fmtDate(r.ack.signed_at) : ""),
@@ -164,10 +212,10 @@ function csvCell(v) {
 
 function downloadCsv() {
   if (!currentReport) return;
-  const lines = [["#", "Овог нэр", "Албан тушаал", "Төлөв", "Огноо"].map(csvCell).join(",")];
+  const lines = [["#", "Овог нэр", "Бүлэг", "Албан тушаал", "Төлөв", "Огноо"].map(csvCell).join(",")];
   currentReport.rows.forEach((r, i) => {
     lines.push(
-      [i + 1, r.name, r.position, r.ack ? "Зурсан" : "Зураагүй", r.ack ? fmtDate(r.ack.signed_at) : ""]
+      [i + 1, r.name, r.group, r.position, r.ack ? "Зурсан" : "Зураагүй", r.ack ? fmtDate(r.ack.signed_at) : ""]
         .map(csvCell).join(",")
     );
   });
