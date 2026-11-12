@@ -72,7 +72,7 @@ async function loadMyDocs(route) {
   const box = $("my-docs");
   box.replaceChildren();
   const { data: docs, error } = await sb
-    .from("documents").select("id, title, audience, kind, commute_mode, active")
+    .from("documents").select("id, title, audience, kind, commute_mode, frequency, active")
     .eq("active", true).order("created_at", { ascending: false });
   if (error) {
     box.append(el("p", { class: "muted" }, translateError(error)));
@@ -82,8 +82,10 @@ async function loadMyDocs(route) {
     if (d.kind === "commute") return d.commute_mode === route.mode;
     return !d.audience || !d.audience.length || d.audience.includes(currentProfile.staff_group);
   });
-  const { data: acks } = await sb.from("acknowledgements").select("document_id").eq("user_id", currentUser.id);
-  const signed = new Set((acks || []).map((a) => a.document_id));
+  const { data: acks } = await sb.from("acknowledgements").select("document_id, sign_date").eq("user_id", currentUser.id);
+  const today = todayUB();
+  const freq = new Map(docs.map((d) => [d.id, d.frequency]));
+  const signed = new Set((acks || []).filter((a) => freq.get(a.document_id) !== "daily" || a.sign_date === today).map((a) => a.document_id));
   if (!mine.length) {
     box.append(el("p", { class: "muted" }, "Танд хамаарах зааварчилгаа одоогоор алга."));
     return;
@@ -101,7 +103,7 @@ async function loadMyDocs(route) {
           el("strong", {}, d.title),
           el("div", { class: "muted" }, KIND_LABELS[d.kind] || "Ерөнхий")),
         el("div", { class: "row", style: "margin:0" },
-          el("span", { class: "badge " + (done ? "ok" : "no") }, done ? "Зурсан" : "Зураагүй"),
+          el("span", { class: "badge " + (done ? "ok" : "no") }, d.frequency === "daily" ? (done ? "Өнөөдөр зурсан" : "Өнөөдөр зураагүй") : (done ? "Зурсан" : "Зураагүй")),
           el("a", { class: "btn", href: "index.html?doc=" + encodeURIComponent(d.id) }, done ? "Харах" : "Унших"))
       )
     );
@@ -227,9 +229,12 @@ async function loadDoc() {
   $("doc-meta").textContent = [doc.deadline ? "Дуусах хугацаа: " + doc.deadline : "", aud].filter(Boolean).join(" · ");
   show("view-doc");
 
-  const { data: ack } = await sb
-    .from("acknowledgements").select("signed_at")
-    .eq("document_id", doc.id).eq("user_id", currentUser.id).maybeSingle();
+  const { data: ackRows } = await sb
+    .from("acknowledgements").select("signed_at, sign_date")
+    .eq("document_id", doc.id).eq("user_id", currentUser.id)
+    .order("signed_at", { ascending: false }).limit(1);
+  let ack = ackRows && ackRows[0];
+  if (ack && doc.frequency === "daily" && ack.sign_date !== todayUB()) ack = null;
   if (ack) {
     show("sign-area", false);
     show("signed-area");

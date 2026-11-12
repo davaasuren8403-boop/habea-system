@@ -209,7 +209,7 @@ async function loadDocs() {
         el("div", {},
           el("strong", {}, d.title),
           el("div", { class: "muted" },
-            fmtDate(d.created_at) + " · " + (KIND_LABELS[d.kind] || "Ерөнхий") + (d.deadline ? " · хугацаа: " + d.deadline : "") + (d.kind === "commute" ? " · гэр–ажлын зам: " + (MODES[d.commute_mode] || "") : d.audience && d.audience.length ? " · " + d.audience.join(", ") : " · бүх ажилтан") + (d.image_url ? " · постертой" : "") + (d.active ? "" : " · идэвхгүй"))
+            fmtDate(d.created_at) + " · " + (KIND_LABELS[d.kind] || "Ерөнхий") + (d.frequency === "daily" ? " · өдөр бүр" : " · нэг удаа") + (d.deadline ? " · хугацаа: " + d.deadline : "") + (d.kind === "commute" ? " · гэр–ажлын зам: " + (MODES[d.commute_mode] || "") : d.audience && d.audience.length ? " · " + d.audience.join(", ") : " · бүх ажилтан") + (d.image_url ? " · постертой" : "") + (d.active ? "" : " · идэвхгүй"))
         ),
         el("div", { class: "row", style: "margin:0" },
           el("button", { type: "button", onclick: () => showQr(d) }, "QR"),
@@ -272,6 +272,7 @@ async function onCreateDoc(e) {
   const kind = $("doc-kind").value;
   const payload = {
     kind,
+    frequency: $("doc-freq").value,
     commute_mode: kind === "commute" ? $("doc-mode").value : null,
     image_url: imageUrl,
     school_id: me.school_id,
@@ -298,6 +299,7 @@ function docUrl(d) {
 
 function showQr(d) {
   show("view-report", false);
+  show("view-daily", false);
   const url = docUrl(d);
   $("qr-title").textContent = d.title;
   $("qr").replaceChildren();
@@ -307,8 +309,9 @@ function showQr(d) {
   $("view-qr").scrollIntoView({ behavior: "smooth" });
 }
 
-async function showReport(d) {
+async function showReport(d, day) {
   show("view-qr", false);
+  show("view-daily", false);
   const [profRes, ackRes] = await Promise.all([
     sb.from("profiles").select("id, full_name, position, staff_group").eq("school_id", me.school_id).order("full_name"),
     sb.from("acknowledgements").select("*").eq("document_id", d.id)
@@ -317,7 +320,12 @@ async function showReport(d) {
     setMsg("msg-global", translateError(profRes.error || ackRes.error), "error");
     return;
   }
-  const acks = new Map(ackRes.data.map((a) => [a.user_id, a]));
+  const isDaily = d.frequency === "daily";
+  day = day || todayUB();
+  $("report-date").value = day;
+  show("report-date-wrap", isDaily);
+  const ackData = isDaily ? ackRes.data.filter((a) => a.sign_date === day) : ackRes.data;
+  const acks = new Map(ackData.map((a) => [a.user_id, a]));
   const aud = d.kind === "commute" ? null : (d.audience && d.audience.length ? d.audience : null);
   const rows = profRes.data
     .filter((p) => {
@@ -338,7 +346,7 @@ async function showReport(d) {
   currentReport = { doc: d, rows };
 
   const signed = rows.filter((r) => r.ack).length;
-  $("report-title").textContent = d.title;
+  $("report-title").textContent = d.title + (isDaily ? " — " + day : "");
   $("report-summary").textContent =
     `${d.kind === "commute" ? "Тээврийн хэлбэр: " + (MODES[d.commute_mode] || "") + ". " : ""}${aud ? "Хамрах бүлэг: " + aud.join(", ") + ". " : ""}Нийт ${rows.length} ажилтнаас ${signed} нь гарын үсэг зурсан, ${rows.length - signed} нь зураагүй.`;
   const body = $("report-body");
@@ -360,6 +368,77 @@ async function showReport(d) {
   });
   show("view-report");
   $("view-report").scrollIntoView({ behavior: "smooth" });
+}
+
+let dailyData = null;
+
+function todayLocal() {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
+async function showDaily() {
+  const day = $("daily-date").value || todayLocal();
+  const start = new Date(day + "T00:00:00"); // хэрэглэгчийн цагийн бүс
+  const end = new Date(start.getTime() + 24 * 3600 * 1000);
+  setMsg("msg-global", "");
+  const [profRes, ackRes, docRes] = await Promise.all([
+    sb.from("profiles").select("id, full_name, position, staff_group").eq("school_id", me.school_id).order("full_name"),
+    sb.from("acknowledgements").select("*").gte("signed_at", start.toISOString()).lt("signed_at", end.toISOString()).order("signed_at"),
+    sb.from("documents").select("id, title, kind").eq("school_id", me.school_id)
+  ]);
+  const err = profRes.error || ackRes.error || docRes.error;
+  if (err) { setMsg("msg-global", translateError(err), "error"); return; }
+  const docs = new Map(docRes.data.map((d) => [d.id, d]));
+  const usedIds = [...new Set(ackRes.data.map((a) => a.document_id))];
+  const cols = usedIds.map((id) => docs.get(id)).filter(Boolean)
+    .sort((a, b) => (a.kind === "commute" ? -1 : 0) - (b.kind === "commute" ? -1 : 0));
+  const byUser = new Map();
+  for (const a of ackRes.data) {
+    if (!byUser.has(a.user_id)) byUser.set(a.user_id, new Map());
+    byUser.get(a.user_id).set(a.document_id, a);
+  }
+  const signedProfiles = profRes.data.filter((p) => byUser.has(p.id));
+  const missing = profRes.data.filter((p) => !byUser.has(p.id));
+  dailyData = { day, cols, rows: signedProfiles.map((p) => ({ p, acks: byUser.get(p.id) })), missing };
+
+  $("daily-title").textContent = `Өдрийн нэгдсэн тайлан: ${day}`;
+  $("daily-summary").textContent = `${school ? school.name + ". " : ""}Нийт ${profRes.data.length} ажилтнаас ${signedProfiles.length} нь зааварчилгаа авсан, ${missing.length} нь аваагүй. Зааварчилгааны тоо: ${cols.length}.`;
+  const head = $("daily-head");
+  head.replaceChildren(el("tr", {},
+    el("th", {}, "#"), el("th", {}, "Овог нэр"), el("th", {}, "Бүлэг"),
+    ...cols.map((c) => el("th", {}, c.title)),
+    el("th", {}, "Гарын үсэг")));
+  const body = $("daily-body");
+  body.replaceChildren();
+  dailyData.rows.forEach((r, i) => {
+    const first = [...r.acks.values()][0];
+    body.append(el("tr", {},
+      el("td", {}, i + 1), el("td", {}, r.p.full_name), el("td", {}, r.p.staff_group || ""),
+      ...cols.map((c) => {
+        const ak = r.acks.get(c.id);
+        return el("td", {}, ak ? el("span", { class: "badge ok" }, new Date(ak.signed_at).toLocaleTimeString("mn-MN", { hour: "2-digit", minute: "2-digit" })) : el("span", { class: "badge no" }, "—"));
+      }),
+      el("td", {}, el("img", { class: "sig", src: first.signature, alt: "гарын үсэг" }))));
+  });
+  $("daily-missing").textContent = missing.length ? missing.map((p) => p.full_name + (p.staff_group ? " (" + p.staff_group + ")" : "")).join(", ") : "Бүгд зааварчилгаа авсан.";
+  show("view-report", false);
+  show("view-qr", false);
+  show("view-daily");
+  $("view-daily").scrollIntoView({ behavior: "smooth" });
+}
+
+function downloadDailyCsv() {
+  if (!dailyData) return;
+  const { cols, rows, day, missing } = dailyData;
+  const lines = [["#", "Овог нэр", "Бүлэг", ...cols.map((c) => c.title)].map(csvCell).join(",")];
+  rows.forEach((r, i) => lines.push([i + 1, r.p.full_name, r.p.staff_group || "",
+    ...cols.map((c) => { const ak = r.acks.get(c.id); return ak ? fmtDate(ak.signed_at) : ""; })].map(csvCell).join(",")));
+  lines.push("");
+  lines.push(["Аваагүй ажилтнууд", ...missing.map((p) => p.full_name)].map(csvCell).join(","));
+  const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const a = el("a", { href: URL.createObjectURL(blob), download: `habea-udriin-tailan-${day}.csv` });
+  document.body.append(a); a.click(); a.remove();
 }
 
 function csvCell(v) {
@@ -403,7 +482,17 @@ $("btn-loc-me").addEventListener("click", useMyLocForSchool);
 $("btn-save-loc").addEventListener("click", saveSchoolLoc);
 $("btn-loc-search").addEventListener("click", searchSchoolLoc);
 $("loc-search").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); searchSchoolLoc(); } });
-$("doc-kind").addEventListener("change", () => show("mode-wrap", $("doc-kind").value === "commute"));
+$("doc-kind").addEventListener("change", () => {
+  const k = $("doc-kind").value;
+  show("mode-wrap", k === "commute");
+  $("doc-freq").value = (k === "daily" || k === "commute") ? "daily" : "once";
+});
+$("report-date").addEventListener("change", () => currentReport && showReport(currentReport.doc, $("report-date").value));
+$("daily-date").value = todayLocal();
+$("btn-daily").addEventListener("click", showDaily);
+$("btn-daily-csv").addEventListener("click", downloadDailyCsv);
+$("btn-daily-print").addEventListener("click", () => window.print());
+$("btn-daily-close").addEventListener("click", () => show("view-daily", false));
 $("btn-csv").addEventListener("click", downloadCsv);
 $("btn-print").addEventListener("click", () => window.print());
 $("btn-print-qr").addEventListener("click", () => window.print());

@@ -49,6 +49,11 @@
           <option value="general">Бусад (ерөнхий) зааварчилгаа</option>
           <option value="commute">Гэр–ажлын замын заавар (тээврийн хэлбэрээр)</option>
         </select>
+        <label for="doc-freq">Давтамж</label>
+        <select id="doc-freq">
+          <option value="daily">Өдөр бүр гарын үсэг зурна</option>
+          <option value="once">Нэг удаа гарын үсэг зурна</option>
+        </select>
         <div id="mode-wrap" hidden>
           <label for="doc-mode">Аль тээврийн хэлбэрт зориулсан бэ?</label>
           <select id="doc-mode">
@@ -113,6 +118,33 @@
       <div id="doc-list"></div>
     </section>
 
+    <section class="card no-print">
+      <h2>Өдрийн нэгдсэн тайлан</h2>
+      <p class="muted">Сонгосон өдөр зааварчилгаа авсан бүх ажилтныг нэг хуудсанд гаргана.</p>
+      <div class="row">
+        <input id="daily-date" type="date">
+        <button id="btn-daily" type="button">Тайлан гаргах</button>
+      </div>
+    </section>
+
+    <section id="view-daily" class="card" hidden>
+      <h2 id="daily-title"></h2>
+      <p id="daily-summary" class="muted"></p>
+      <div class="row no-print">
+        <button id="btn-daily-csv" type="button">CSV татах</button>
+        <button id="btn-daily-print" type="button">Хэвлэх / PDF</button>
+        <button id="btn-daily-close" class="secondary" type="button">Хаах</button>
+      </div>
+      <div style="overflow-x:auto; margin-top:12px">
+        <table>
+          <thead id="daily-head"></thead>
+          <tbody id="daily-body"></tbody>
+        </table>
+      </div>
+      <h3 style="margin-top:18px">Тухайн өдөр зааварчилгаа аваагүй ажилтнууд</h3>
+      <p id="daily-missing" class="muted"></p>
+    </section>
+
     <section id="view-qr" class="card" hidden>
       <h2 id="qr-title"></h2>
       <div class="qr-box">
@@ -128,6 +160,10 @@
     <section id="view-report" class="card" hidden>
       <h2 id="report-title"></h2>
       <p id="report-summary" class="muted"></p>
+      <div id="report-date-wrap" class="row no-print" hidden>
+        <label for="report-date" style="margin:0">Өдөр:</label>
+        <input id="report-date" type="date">
+      </div>
       <div class="row no-print">
         <button id="btn-csv" type="button">CSV татах</button>
         <button id="btn-print" type="button">Хэвлэх / PDF</button>

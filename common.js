@@ -262,3 +262,8 @@ function getMyLocation() {
     );
   });
 }
+
+// Улаанбаатарын өнөөдрийн огноо (YYYY-MM-DD)
+function todayUB() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ulaanbaatar" }).format(new Date());
+}
