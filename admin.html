@@ -55,6 +55,7 @@
         </div>
         <label for="doc-body">Зааварчилгааны текст</label>
         <textarea id="doc-body" required></textarea>
+        <p class="muted">Хэлбэржүүлэлт: БҮХЭЛДЭЭ ТОМ ҮСГЭЭР бичсэн мөр = гарчиг; мөрийн эхэнд "* " = цэгтэй жагсаалт; **ийм** = тод үсэг. Хоосон мөр = завсарлага.</p>
         <label for="doc-image">Постер, зураг (заавал биш, PNG/JPG/WebP, 2 МБ хүртэл)</label>
         <input id="doc-image" type="file" accept="image/png,image/jpeg,image/webp">
         <label>Хэнд хамаарах вэ? <span class="muted">(юу ч сонгохгүй бол бүх ажилтан)</span></label>
@@ -70,6 +71,11 @@
       <h2>Сургуулийн байршил</h2>
       <p class="muted">Ажилтнуудын гэр–ажлын замыг тооцоолоход хэрэгтэй. Нэг удаа тохируулна: газрын зураг дээр сургуулиа товшино.</p>
       <p id="school-loc-status" class="muted"></p>
+      <div class="row" style="margin:0 0 8px">
+        <input id="loc-search" type="text" placeholder="Сургуулийн хаяг хайх, жишээ: Баянзүрх дүүрэг, Өмнөдэлгэр">
+        <button id="btn-loc-search" class="secondary" type="button">Хайх</button>
+      </div>
+      <p class="muted">Газрын зургийг томруулж, сургуулийн яг байрлал дээр нэг товшино. Дараа нь «Хадгалах» дарна.</p>
       <div id="admin-map" class="map"></div>
       <div class="row">
         <button id="btn-save-loc" type="button">Сургуулийн байршлыг хадгалах</button>

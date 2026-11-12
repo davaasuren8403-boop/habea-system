@@ -195,7 +195,7 @@ async function loadDoc() {
   }
   currentDoc = doc;
   $("doc-title").textContent = doc.title;
-  $("doc-body").textContent = doc.body;
+  renderRich($("doc-body"), doc.body);
   const aud = doc.audience && doc.audience.length ? "Хамрах бүлэг: " + doc.audience.join(", ") : "";
   const img = $("doc-image");
   if (doc.image_url) {

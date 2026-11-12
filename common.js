@@ -185,7 +185,10 @@ function fmtKm(m) {
 
 // Leaflet газрын зураг: товшиж цэг сонгоно
 function makePickMap(elId, center, onPick) {
-  const map = L.map(elId).setView(center, 13);
+  // Хуудас гүйлгэх үед зураг санамсаргүй томрохоос сэргийлж, товшсоны дараа дугуйгаар томруулна
+  const map = L.map(elId, { scrollWheelZoom: false }).setView(center, 13);
+  map.once("focus", () => map.scrollWheelZoom.enable());
+  map.on("click", () => map.scrollWheelZoom.enable());
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19, attribution: "© OpenStreetMap"
   }).addTo(map);
@@ -205,4 +208,37 @@ function makePickMap(elId, center, onPick) {
     onPick({ lat: e.latlng.lat, lng: e.latlng.lng });
   });
   return api;
+}
+
+/* Зааварчилгааны текстийг гарчиг/жагсаалт/тодруулга болгон харуулна (аюулгүй: зөвхөн textContent) */
+function renderRich(container, text) {
+  container.replaceChildren();
+  let ul = null;
+  const inline = (parent, s) => {
+    s.split(/(\*\*[^*]+\*\*)/g).forEach((part) => {
+      if (/^\*\*[^*]+\*\*$/.test(part)) {
+        const b = document.createElement("strong");
+        b.textContent = part.slice(2, -2);
+        parent.append(b);
+      } else if (part) parent.append(document.createTextNode(part));
+    });
+  };
+  (text || "").split(/\r?\n/).forEach((raw) => {
+    const line = raw.trim();
+    if (!line) { ul = null; return; }
+    const bullet = line.match(/^([*\-•])\s+(.*)$/);
+    if (bullet) {
+      if (!ul) { ul = document.createElement("ul"); container.append(ul); }
+      const li = document.createElement("li");
+      inline(li, bullet[2]);
+      ul.append(li);
+      return;
+    }
+    ul = null;
+    const isCaps = line.length >= 3 && line.length <= 90 &&
+      line === line.toUpperCase() && line !== line.toLowerCase() && !/[.:]$/.test(line);
+    const node = document.createElement(isCaps ? "h3" : "p");
+    if (isCaps) node.textContent = line; else inline(node, line);
+    container.append(node);
+  });
 }

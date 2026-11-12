@@ -61,7 +61,11 @@ button.danger { background: var(--danger); }
 .msg { padding: 10px 12px; border-radius: 8px; margin: 12px 0; background: var(--ok-bg); }
 .msg.error { background: var(--err-bg); color: var(--danger); }
 .muted { color: var(--muted); font-size: .9rem; }
-.doc-body { white-space: pre-wrap; word-break: break-word; border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: #fafbfc; max-height: 55vh; overflow: auto; }
+.doc-body { word-break: break-word; border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; background: #fafbfc; max-height: 60vh; overflow: auto; line-height: 1.6; }
+.doc-body h3 { font-size: 1.05em; margin: 14px 0 6px; color: #14532d; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+.doc-body p { margin: 6px 0; }
+.doc-body ul { margin: 6px 0; padding-left: 22px; }
+.doc-body li { margin: 4px 0; }
 canvas.sign { width: 100%; height: auto; aspect-ratio: 5 / 2; border: 2px dashed var(--border); border-radius: 8px; background: #fff; display: block; }
 .check { display: flex; gap: 8px; align-items: flex-start; font-weight: 500; margin-top: 12px; }
 .check input { margin-top: 5px; }
