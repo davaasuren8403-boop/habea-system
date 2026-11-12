@@ -246,7 +246,7 @@ function renderRich(container, text) {
 
 const KIND_LABELS = {
   general: "Ерөнхий", daily: "Өдөр тутмын", initial: "Анхан шатны", pre: "Урьдчилсан",
-  repeat: "Давтан", extra: "Ээлжит бус", commute: "Гэр–ажлын зам"
+  repeat: "Давтан", extra: "Ээлжит бус", trip: "Томилолт, тэмцээн", commute: "Гэр–ажлын зам"
 };
 
 // Төхөөрөмжийн GPS/байршлыг авна (хэрэглэгч зөвшөөрөл өгнө). Утсан дээр нарийвчлал өндөр.

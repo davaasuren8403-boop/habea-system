@@ -88,7 +88,7 @@ async function loadMyDocs(route) {
   const box = $("my-docs");
   box.replaceChildren();
   const { data: docs, error } = await sb
-    .from("documents").select("id, title, audience, kind, commute_mode, frequency, active")
+    .from("documents").select("id, title, audience, kind, commute_mode, frequency, target_users, active")
     .eq("active", true).order("created_at", { ascending: false });
   if (error) {
     box.append(el("p", { class: "muted" }, translateError(error)));
@@ -96,6 +96,7 @@ async function loadMyDocs(route) {
   }
   const mine = docs.filter((d) => {
     if (d.kind === "commute") return d.commute_mode === route.mode;
+    if (d.target_users && d.target_users.length) return d.target_users.includes(currentUser.id);
     return !d.audience || !d.audience.length || groupsOf(currentProfile).some((g) => d.audience.includes(g));
   });
   const { data: acks } = await sb.from("acknowledgements").select("document_id, sign_date").eq("user_id", currentUser.id);

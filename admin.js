@@ -152,6 +152,15 @@ async function loadRoutes() {
     (missing.length ? `. Оруулаагүй: ${missing.join(", ")}` : "");
 }
 
+let staffCache = [];
+function buildTargets() {
+  const box = $("doc-targets");
+  box.replaceChildren();
+  for (const p of staffCache) {
+    box.append(el("label", { class: "check" }, el("input", { type: "checkbox", value: p.id }), el("span", {}, p.full_name)));
+  }
+}
+
 function buildAudience() {
   const box = $("doc-audience");
   box.replaceChildren();
@@ -171,6 +180,8 @@ async function loadStaff() {
     setMsg("msg-global", translateError(error), "error");
     return;
   }
+  staffCache = data;
+  buildTargets();
   const list = $("staff-list");
   list.replaceChildren();
   for (const p of data) {
@@ -211,7 +222,7 @@ async function loadDocs() {
         el("div", {},
           el("strong", {}, d.title),
           el("div", { class: "muted" },
-            fmtDate(d.created_at) + " · " + (KIND_LABELS[d.kind] || "Ерөнхий") + (d.frequency === "daily" ? " · өдөр бүр" : " · нэг удаа") + (d.deadline ? " · хугацаа: " + d.deadline : "") + (d.kind === "commute" ? " · гэр–ажлын зам: " + (MODES[d.commute_mode] || "") : d.audience && d.audience.length ? " · " + d.audience.join(", ") : " · бүх ажилтан") + (d.image_url ? " · постертой" : "") + (d.active ? "" : " · идэвхгүй"))
+            fmtDate(d.created_at) + " · " + (KIND_LABELS[d.kind] || "Ерөнхий") + (d.frequency === "daily" ? " · өдөр бүр" : " · нэг удаа") + (d.deadline ? " · хугацаа: " + d.deadline : "") + (d.target_users && d.target_users.length ? " · явах хүн: " + d.target_users.length : "") + (d.kind === "commute" ? " · гэр–ажлын зам: " + (MODES[d.commute_mode] || "") : d.audience && d.audience.length ? " · " + d.audience.join(", ") : " · бүх ажилтан") + (d.image_url ? " · постертой" : "") + (d.active ? "" : " · идэвхгүй"))
         ),
         el("div", { class: "row", style: "margin:0" },
           el("button", { type: "button", onclick: () => showQr(d) }, "QR"),
@@ -281,16 +292,25 @@ async function onCreateDoc(e) {
     title: $("doc-title").value.trim(),
     body: $("doc-body").value,
     deadline: $("doc-deadline").value || null,
-    audience: [...document.querySelectorAll("#doc-audience input:checked")].map((i) => i.value)
+    audience: kind === "trip" ? [] : [...document.querySelectorAll("#doc-audience input:checked")].map((i) => i.value),
+    target_users: kind === "trip" ? [...document.querySelectorAll("#doc-targets input:checked")].map((i) => i.value) : null
   };
   if (!payload.audience.length) payload.audience = null;
+  if (kind === "trip" && !payload.target_users.length) {
+    setMsg("msg-doc", "Томилолт, тэмцээнд явах ажилтнуудыг сонгоно уу.", "error");
+    return;
+  }
   const { error } = await sb.from("documents").insert(payload);
   if (error) {
     setMsg("msg-doc", translateError(error), "error");
     return;
   }
   $("form-doc").reset();
+  show("mode-wrap", false);
+  show("target-wrap", false);
+  show("aud-wrap");
   buildAudience();
+  buildTargets();
   setMsg("msg-doc", "Хадгалагдлаа.");
   await loadDocs();
 }
@@ -348,6 +368,7 @@ async function showReport(d, day) {
         const r = routeMap.get(p.id);
         return (r && r.mode === d.commute_mode) || acks.has(p.id);
       }
+      if (d.target_users && d.target_users.length) return d.target_users.includes(p.id) || acks.has(p.id);
       return !aud || groupsOf(p).some((g) => aud.includes(g)) || acks.has(p.id);
     })
     .map((p) => ({
@@ -502,6 +523,8 @@ $("loc-search").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.
 $("doc-kind").addEventListener("change", () => {
   const k = $("doc-kind").value;
   show("mode-wrap", k === "commute");
+  show("target-wrap", k === "trip");
+  show("aud-wrap", k !== "trip");
   $("doc-freq").value = (k === "daily" || k === "commute") ? "daily" : "once";
 });
 $("report-date").addEventListener("change", () => currentReport && showReport(currentReport.doc, $("report-date").value));

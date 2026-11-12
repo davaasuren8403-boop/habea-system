@@ -50,6 +50,7 @@
           <option value="pre">Урьдчилсан зааварчилгаа</option>
           <option value="repeat">Давтан зааварчилгаа</option>
           <option value="extra">Ээлжит бус зааварчилгаа</option>
+          <option value="trip">Томилолт, тэмцээн уралдааны зааварчилгаа</option>
           <option value="general">Бусад (ерөнхий) зааварчилгаа</option>
           <option value="commute">Гэр–ажлын замын заавар (тээврийн хэлбэрээр)</option>
         </select>
@@ -72,8 +73,14 @@
         <p class="muted">Хэлбэржүүлэлт: БҮХЭЛДЭЭ ТОМ ҮСГЭЭР бичсэн мөр = гарчиг; мөрийн эхэнд "* " = цэгтэй жагсаалт; **ийм** = тод үсэг. Хоосон мөр = завсарлага.</p>
         <label for="doc-image">Постер, зураг (заавал биш, PNG/JPG/WebP, том зургийг автоматаар жижигрүүлнэ)</label>
         <input id="doc-image" type="file" accept="image/png,image/jpeg,image/webp">
-        <label>Хэнд хамаарах вэ? <span class="muted">(юу ч сонгохгүй бол бүх ажилтан)</span></label>
-        <div id="doc-audience" class="groups"></div>
+        <div id="aud-wrap">
+          <label>Хэнд хамаарах вэ? <span class="muted">(юу ч сонгохгүй бол бүх ажилтан)</span></label>
+          <div id="doc-audience" class="groups"></div>
+        </div>
+        <div id="target-wrap" hidden>
+          <label>Томилолт, тэмцээнд явах ажилтнууд <span class="muted">(заавал сонгоно)</span></label>
+          <div id="doc-targets" class="groups"></div>
+        </div>
         <label for="doc-deadline">Танилцаж дуусах хугацаа (заавал биш)</label>
         <input id="doc-deadline" type="date">
         <div class="row"><button type="submit">Хадгалах</button></div>
