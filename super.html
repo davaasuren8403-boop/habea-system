@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="mn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Супер админ</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap wide">
+  <header class="top">
+    <h1>Супер админ: сургуулиуд</h1>
+    <button id="btn-logout" class="secondary" hidden>Гарах</button>
+  </header>
+
+  <div id="msg-global" class="msg" hidden></div>
+
+  <section id="view-login" class="card" hidden>
+    <h2>Нэвтрэх</h2>
+    <form id="form-login">
+      <label for="email">Имэйл</label>
+      <input id="email" type="email" autocomplete="email" required>
+      <label for="password">Нууц үг</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+      <div class="row"><button type="submit">Нэвтрэх</button></div>
+    </form>
+    <div id="msg-login" class="msg" hidden></div>
+  </section>
+
+  <div id="view-main" hidden>
+    <section class="card">
+      <h2>Шинэ сургууль нэмэх</h2>
+      <form id="form-school">
+        <label for="s-name">Сургуулийн нэр</label>
+        <input id="s-name" type="text" required>
+        <label for="s-contact">Холбоо барих (нэр, утас, имэйл)</label>
+        <input id="s-contact" type="text">
+        <label for="s-expires">Лиценз дуусах огноо (хоосон бол хугацаагүй)</label>
+        <input id="s-expires" type="date">
+        <label for="s-limit">Ажилтны дээд тоо</label>
+        <input id="s-limit" type="text" inputmode="numeric" value="50">
+        <div class="row"><button type="submit">Сургууль үүсгэх</button></div>
+      </form>
+      <div id="msg-school" class="msg" hidden></div>
+    </section>
+
+    <section class="card">
+      <h2>Сургуулиуд</h2>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Сургууль</th><th>Код</th><th>Ажилтан</th><th>Заавар</th><th>Гарын үсэг</th><th>Лиценз</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="school-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="view-edit" class="card" hidden>
+      <h2 id="edit-title"></h2>
+      <form id="form-edit">
+        <label class="check">
+          <input id="e-active" type="checkbox">
+          <span>Идэвхтэй</span>
+        </label>
+        <label for="e-expires">Лиценз дуусах огноо</label>
+        <input id="e-expires" type="date">
+        <label for="e-limit">Ажилтны дээд тоо</label>
+        <input id="e-limit" type="text" inputmode="numeric">
+        <label for="e-note">Тэмдэглэл (төлбөр, гэрээний дугаар гэх мэт)</label>
+        <textarea id="e-note" style="min-height:80px"></textarea>
+        <div class="row">
+          <button type="submit">Хадгалах</button>
+          <button id="btn-edit-cancel" class="secondary" type="button">Болих</button>
+        </div>
+      </form>
+      <hr>
+      <h2>Сургуулийн админ томлох</h2>
+      <p class="muted">Админ болох хүн эхлээд index.html дээр бүртгүүлж, сургуулийн кодоор нэгдсэн байх ёстой.</p>
+      <form id="form-admin">
+        <label for="a-email">Админ болох хүний имэйл</label>
+        <input id="a-email" type="email" required>
+        <div class="row"><button type="submit">Админ болгох</button></div>
+      </form>
+      <div id="msg-edit" class="msg" hidden></div>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="super.js"></script>
+</body>
+</html>

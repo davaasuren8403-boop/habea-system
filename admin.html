@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="mn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ХАБЭА админ</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap wide">
+  <header class="top no-print">
+    <h1>ХАБЭА зааварчилгаа: админ</h1>
+    <button id="btn-logout" class="secondary" hidden>Гарах</button>
+  </header>
+
+  <div id="msg-global" class="msg no-print" hidden></div>
+
+  <section id="view-login" class="card no-print" hidden>
+    <h2>Админ нэвтрэх</h2>
+    <form id="form-login">
+      <label for="email">Имэйл</label>
+      <input id="email" type="email" autocomplete="email" required>
+      <label for="password">Нууц үг</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+      <div class="row"><button type="submit">Нэвтрэх</button></div>
+    </form>
+    <div id="msg-login" class="msg" hidden></div>
+  </section>
+
+  <div id="view-main" hidden>
+    <section class="card no-print">
+      <h2 id="school-name"></h2>
+      <p class="muted">Ажилтнуудад өгөх сургуулийн код: <strong id="join-code"></strong></p>
+    </section>
+
+    <section class="card no-print">
+      <h2>Шинэ зааварчилгаа нэмэх</h2>
+      <form id="form-doc">
+        <label for="doc-title">Гарчиг</label>
+        <input id="doc-title" type="text" required>
+        <label for="doc-body">Зааварчилгааны текст</label>
+        <textarea id="doc-body" required></textarea>
+        <label for="doc-deadline">Танилцаж дуусах хугацаа (заавал биш)</label>
+        <input id="doc-deadline" type="date">
+        <div class="row"><button type="submit">Хадгалах</button></div>
+      </form>
+      <div id="msg-doc" class="msg" hidden></div>
+    </section>
+
+    <section class="card no-print">
+      <h2>Зааварчилгаанууд</h2>
+      <div id="doc-list"></div>
+    </section>
+
+    <section id="view-qr" class="card" hidden>
+      <h2 id="qr-title"></h2>
+      <div class="qr-box">
+        <div id="qr"></div>
+        <div id="qr-link" class="link"></div>
+        <div class="row no-print">
+          <button id="btn-print-qr" type="button">QR хэвлэх</button>
+          <button id="btn-close-qr" class="secondary" type="button">Хаах</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-report" class="card" hidden>
+      <h2 id="report-title"></h2>
+      <p id="report-summary" class="muted"></p>
+      <div class="row no-print">
+        <button id="btn-csv" type="button">CSV татах</button>
+        <button id="btn-print" type="button">Хэвлэх / PDF</button>
+        <button id="btn-close-report" class="secondary" type="button">Хаах</button>
+      </div>
+      <div style="overflow-x:auto; margin-top:12px">
+        <table>
+          <thead>
+            <tr><th>#</th><th>Овог нэр</th><th>Албан тушаал</th><th>Төлөв</th><th>Огноо</th><th>Гарын үсэг</th></tr>
+          </thead>
+          <tbody id="report-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

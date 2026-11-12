@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="mn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ХАБЭА зааварчилгаа</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>ХАБЭА зааварчилгаа</h1>
+    <button id="btn-logout" class="secondary" hidden>Гарах</button>
+  </header>
+
+  <div id="msg-global" class="msg" hidden></div>
+
+  <!-- Нэвтрэх / бүртгүүлэх -->
+  <section id="view-auth" class="card" hidden>
+    <div class="tabs">
+      <button id="tab-login" class="active" type="button">Нэвтрэх</button>
+      <button id="tab-register" type="button">Бүртгүүлэх</button>
+    </div>
+    <form id="form-auth">
+      <label for="email">Имэйл</label>
+      <input id="email" type="email" autocomplete="email" required>
+      <label for="password">Нууц үг</label>
+      <input id="password" type="password" autocomplete="current-password" minlength="6" required>
+      <div class="row"><button id="btn-auth" type="submit">Нэвтрэх</button></div>
+    </form>
+    <div id="msg-auth" class="msg" hidden></div>
+  </section>
+
+  <!-- Сургуульд нэгдэх (эхний удаа) -->
+  <section id="view-join" class="card" hidden>
+    <h2>Сургуульдаа нэгдэх</h2>
+    <p class="muted">Сургуулийн кодыг админаас авна. Энэ нь нэг удаа бөглөнө.</p>
+    <form id="form-join">
+      <label for="join-code">Сургуулийн код</label>
+      <input id="join-code" type="text" autocomplete="off" required>
+      <label for="join-name">Овог нэр</label>
+      <input id="join-name" type="text" autocomplete="name" required>
+      <label for="join-position">Албан тушаал</label>
+      <input id="join-position" type="text">
+      <div class="row"><button type="submit">Хадгалах</button></div>
+    </form>
+    <div id="msg-join" class="msg" hidden></div>
+  </section>
+
+  <!-- Зааварчилгаа + гарын үсэг -->
+  <section id="view-doc" class="card" hidden>
+    <h2 id="doc-title"></h2>
+    <p id="doc-meta" class="muted"></p>
+    <div id="doc-body" class="doc-body"></div>
+
+    <div id="sign-area">
+      <label class="check">
+        <input id="agree" type="checkbox">
+        <span>Дээрх зааварчилгаатай бүрэн танилцаж, ойлгосон.</span>
+      </label>
+      <label>Гарын үсэг (хуруугаараа зурна)</label>
+      <canvas id="sign" class="sign"></canvas>
+      <div class="row">
+        <button id="btn-clear" class="secondary" type="button">Арилгах</button>
+        <button id="btn-submit" type="button">Гарын үсэг зурах</button>
+      </div>
+      <div id="msg-sign" class="msg" hidden></div>
+    </div>
+
+    <div id="signed-area" hidden>
+      <div class="msg">Та энэ зааварт гарын үсэг зурсан байна. <span id="signed-at"></span></div>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="staff.js"></script>
+</body>
+</html>
