@@ -9,9 +9,11 @@ let currentSchool = null;
 let routeMap = null;
 let homePoint = null;
 let hasRoute = false;
+let bundleDocs = [];
+let bundlePad = null;
 
 function hideViews() {
-  for (const id of ["view-auth", "view-join", "view-doc", "view-home", "view-route"]) show(id, false);
+  for (const id of ["view-auth", "view-join", "view-doc", "view-home", "view-route", "view-bundle"]) show(id, false);
 }
 
 async function route() {
@@ -86,6 +88,9 @@ async function loadMyDocs(route) {
     box.append(el("p", { class: "muted" }, "Танд хамаарах зааварчилгаа одоогоор алга."));
     return;
   }
+  bundleDocs = mine.filter((d) => !signed.has(d.id));
+  show("bundle-cta", bundleDocs.length >= 2);
+  if (bundleDocs.length >= 2) $("btn-bundle").textContent = `Зураагүй ${bundleDocs.length} зааврыг нэг дор унших, нэг гарын үсэг зурах`;
   // Гэр–ажлын зам эхэндээ
   mine.sort((a, b) => (a.kind === "commute" ? -1 : 0) - (b.kind === "commute" ? -1 : 0));
   for (const d of mine) {
@@ -296,6 +301,55 @@ async function onSubmit() {
   await loadDoc();
 }
 
+// ---- Хэд хэдэн зааврыг нэг гарын үсгээр баталгаажуулах ----
+async function openBundle() {
+  setMsg("msg-bundle", "");
+  const ids = bundleDocs.map((d) => d.id);
+  const { data: docs, error } = await sb.from("documents").select("*").in("id", ids);
+  if (error) { setMsg("msg-global", translateError(error), "error"); return; }
+  const order = new Map(ids.map((id, i) => [id, i]));
+  docs.sort((a, b) => order.get(a.id) - order.get(b.id));
+  bundleDocs = docs;
+  const box = $("bundle-docs");
+  box.replaceChildren();
+  docs.forEach((d, i) => {
+    const body = el("div", { class: "doc-body" });
+    renderRich(body, d.body);
+    box.append(el("div", { class: "bundle-item" },
+      el("h3", {}, `${i + 1}. ${d.title}`),
+      el("div", { class: "muted" }, KIND_LABELS[d.kind] || "Ерөнхий"),
+      d.image_url ? el("img", { class: "poster", src: d.image_url, alt: "Постер" }) : "",
+      body));
+  });
+  $("bundle-count").textContent = `Нийт ${docs.length} заавар. Бүгдийг уншаад доор нэг удаа гарын үсэг зурна.`;
+  $("bundle-agree").checked = false;
+  show("view-home", false);
+  show("view-bundle");
+  if (!bundlePad) bundlePad = new SignaturePad($("bundle-pad"));
+  else bundlePad.clear();
+  window.scrollTo(0, 0);
+}
+
+async function onBundleSubmit() {
+  setMsg("msg-bundle", "");
+  if (!$("bundle-agree").checked) {
+    setMsg("msg-bundle", "Эхлээд «танилцаж, ойлгосон» гэсэн нүдийг тэмдэглэнэ үү.", "error");
+    return;
+  }
+  if (bundlePad.isEmpty()) {
+    setMsg("msg-bundle", "Гарын үсгээ зурна уу.", "error");
+    return;
+  }
+  $("btn-bundle-submit").disabled = true;
+  const sig = bundlePad.toDataURL();
+  const { error } = await sb.from("acknowledgements").insert(bundleDocs.map((d) => ({ document_id: d.id, signature: sig })));
+  $("btn-bundle-submit").disabled = false;
+  if (error) { setMsg("msg-bundle", translateError(error), "error"); return; }
+  show("view-bundle", false);
+  await loadHome();
+  setMsg("msg-global", "Бүх зааварчилгаанд гарын үсэг амжилттай бүртгэгдлээ. Баярлалаа!");
+}
+
 for (const g of STAFF_GROUPS) $("join-group").append(el("option", { value: g }, g));
 $("join-group").insertBefore(el("option", { value: "", selected: "selected", disabled: "disabled" }, "Сонгоно уу"), $("join-group").firstChild);
 
@@ -304,6 +358,10 @@ $("btn-search").addEventListener("click", onSearch);
 $("route-search").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); onSearch(); } });
 $("btn-change-route").addEventListener("click", () => showRouteSetup(true));
 $("btn-route-cancel").addEventListener("click", () => { show("view-route", false); show("view-home"); });
+$("btn-bundle").addEventListener("click", openBundle);
+$("btn-bundle-back").addEventListener("click", () => { show("view-bundle", false); show("view-home"); });
+$("btn-bundle-clear").addEventListener("click", () => bundlePad && bundlePad.clear());
+$("btn-bundle-submit").addEventListener("click", onBundleSubmit);
 $("btn-back").addEventListener("click", () => { location.href = location.pathname; });
 
 $("tab-login").addEventListener("click", () => setAuthMode("login"));

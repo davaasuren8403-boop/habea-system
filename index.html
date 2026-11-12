@@ -58,7 +58,32 @@
       <button id="btn-change-route" class="secondary" type="button">Маршрут өөрчлөх</button>
     </div>
     <h2 style="margin-top:22px">Миний зааварчилгаанууд</h2>
+    <div id="bundle-cta" hidden>
+      <button id="btn-bundle" type="button"></button>
+      <p class="muted">Бүх зааврыг дараалан уншаад нэг гарын үсгээр баталгаажуулна.</p>
+    </div>
     <div id="my-docs"></div>
+  </section>
+
+  <!-- Хэд хэдэн зааврыг нэг дор унших, нэг гарын үсэг -->
+  <section id="view-bundle" class="card" hidden>
+    <button id="btn-bundle-back" class="secondary" type="button">← Нүүр рүү</button>
+    <h2>Өнөөдрийн зааварчилгаанууд</h2>
+    <p id="bundle-count" class="muted"></p>
+    <div id="bundle-docs"></div>
+    <div id="bundle-sign">
+      <label class="check">
+        <input id="bundle-agree" type="checkbox">
+        <span>Дээрх бүх зааварчилгаатай бүрэн танилцаж, ойлгосон.</span>
+      </label>
+      <label>Гарын үсэг (хуруугаараа зурна)</label>
+      <canvas id="bundle-pad" class="sign"></canvas>
+      <div class="row">
+        <button id="btn-bundle-clear" class="secondary" type="button">Арилгах</button>
+        <button id="btn-bundle-submit" type="button">Бүгдэд гарын үсэг зурах</button>
+      </div>
+      <div id="msg-bundle" class="msg" hidden></div>
+    </div>
   </section>
 
   <!-- Гэр–ажлын маршрут тохируулах -->

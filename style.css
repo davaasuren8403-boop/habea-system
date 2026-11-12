@@ -101,3 +101,8 @@ td img.sig { height: 40px; background: #fff; border: 1px solid var(--border); bo
 .row input[type=text] { flex: 1; }
 .doc-link { display: flex; justify-content: space-between; align-items: center; gap: 10px;
   padding: 10px 0; border-bottom: 1px solid #e3e3e3; }
+
+.bundle-item { margin: 18px 0; padding-bottom: 14px; border-bottom: 2px solid var(--border); }
+.bundle-item h3 { margin: 0 0 4px; }
+.bundle-item .doc-body { max-height: none; }
+#bundle-cta { margin: 10px 0 14px; }
