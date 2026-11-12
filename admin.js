@@ -41,7 +41,85 @@ async function route() {
   show("view-main");
   buildAudience();
   await loadStaff();
+  await loadRoutes();
   await loadDocs();
+  setupSchoolMap();
+}
+
+// ---- Сургуулийн байршил ----
+let adminMap = null;
+let schoolPoint = null;
+
+function setupSchoolMap() {
+  const has = school && school.work_lat != null;
+  $("school-loc-status").textContent = has
+    ? "Байршил тохируулагдсан. Өөрчлөх бол газрын зураг дээр дахин товшиж хадгална."
+    : "Байршил тохируулаагүй байна. Ажилтнууд маршрутаа оруулахын өмнө үүнийг хийнэ үү.";
+  const center = has ? [school.work_lat, school.work_lng] : UB_CENTER;
+  if (!adminMap) {
+    adminMap = makePickMap("admin-map", center, (p) => { schoolPoint = p; });
+  }
+  adminMap.map.setView(center, has ? 15 : 12);
+  if (has) adminMap.setPoint(school.work_lat, school.work_lng);
+  setTimeout(() => adminMap.map.invalidateSize(), 150);
+}
+
+async function saveSchoolLoc() {
+  if (!schoolPoint) {
+    setMsg("msg-loc", "Эхлээд газрын зураг дээр сургуулиа товшино уу.", "error");
+    return;
+  }
+  const { error } = await sb.rpc("set_school_location", {
+    p_lat: schoolPoint.lat, p_lng: schoolPoint.lng, p_name: school ? school.name : ""
+  });
+  if (error) {
+    setMsg("msg-loc", translateError(error), "error");
+    return;
+  }
+  school.work_lat = schoolPoint.lat;
+  school.work_lng = schoolPoint.lng;
+  setMsg("msg-loc", "Хадгалагдлаа.");
+  $("school-loc-status").textContent = "Байршил тохируулагдсан.";
+}
+
+// ---- Ажилтнуудын маршрут ----
+let routeMap = new Map();
+
+async function loadRoutes() {
+  const [rRes, pRes] = await Promise.all([
+    sb.from("commute_routes").select("*").eq("school_id", me.school_id),
+    sb.from("profiles").select("id, full_name, staff_group").eq("school_id", me.school_id).order("full_name")
+  ]);
+  if (rRes.error || pRes.error) {
+    setMsg("msg-global", translateError(rRes.error || pRes.error), "error");
+    return;
+  }
+  routeMap = new Map(rRes.data.map((r) => [r.user_id, r]));
+  const body = $("route-body");
+  body.replaceChildren();
+  const missing = [];
+  for (const p of pRes.data) {
+    const r = routeMap.get(p.id);
+    if (!r) {
+      missing.push(p.full_name);
+      continue;
+    }
+    body.append(
+      el("tr", {},
+        el("td", {}, p.full_name),
+        el("td", {}, p.staff_group || ""),
+        el("td", {}, MODES[r.mode] || r.mode),
+        el("td", {}, fmtKm(r.distance_m)),
+        el("td", {}, r.duration_min + " мин"))
+    );
+  }
+  const counts = {};
+  for (const r of routeMap.values()) counts[r.mode] = (counts[r.mode] || 0) + 1;
+  const parts = Object.entries(counts).map(([m, n]) => `${MODES[m] || m}: ${n}`);
+  $("route-stats").textContent =
+    `Маршрут оруулсан: ${routeMap.size} / ${pRes.data.length}` +
+    (parts.length ? ` (${parts.join(", ")})` : "") +
+    (missing.length ? `. Оруулаагүй: ${missing.join(", ")}` : "");
 }
 
 function buildAudience() {
@@ -101,7 +179,7 @@ async function loadDocs() {
         el("div", {},
           el("strong", {}, d.title),
           el("div", { class: "muted" },
-            fmtDate(d.created_at) + (d.deadline ? " · хугацаа: " + d.deadline : "") + (d.audience && d.audience.length ? " · " + d.audience.join(", ") : " · бүх ажилтан") + (d.active ? "" : " · идэвхгүй"))
+            fmtDate(d.created_at) + (d.deadline ? " · хугацаа: " + d.deadline : "") + (d.kind === "commute" ? " · гэр–ажлын зам: " + (MODES[d.commute_mode] || "") : d.audience && d.audience.length ? " · " + d.audience.join(", ") : " · бүх ажилтан") + (d.image_url ? " · постертой" : "") + (d.active ? "" : " · идэвхгүй"))
         ),
         el("div", { class: "row", style: "margin:0" },
           el("button", { type: "button", onclick: () => showQr(d) }, "QR"),
@@ -120,9 +198,31 @@ async function toggleActive(d) {
   await loadDocs();
 }
 
+async function uploadPoster(file) {
+  if (!file) return null;
+  if (file.size > 2 * 1024 * 1024) throw new Error("Зураг 2 МБ-аас их байна.");
+  const ext = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" }[file.type];
+  if (!ext) throw new Error("Зөвхөн PNG, JPG, WebP зураг оруулна уу.");
+  const path = `${me.school_id}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await sb.storage.from("posters").upload(path, file, { contentType: file.type });
+  if (error) throw error;
+  return sb.storage.from("posters").getPublicUrl(path).data.publicUrl;
+}
+
 async function onCreateDoc(e) {
   e.preventDefault();
+  let imageUrl = null;
+  try {
+    imageUrl = await uploadPoster($("doc-image").files[0]);
+  } catch (err) {
+    setMsg("msg-doc", translateError(err), "error");
+    return;
+  }
+  const kind = $("doc-kind").value;
   const payload = {
+    kind,
+    commute_mode: kind === "commute" ? $("doc-mode").value : null,
+    image_url: imageUrl,
     school_id: me.school_id,
     title: $("doc-title").value.trim(),
     body: $("doc-body").value,
@@ -167,12 +267,19 @@ async function showReport(d) {
     return;
   }
   const acks = new Map(ackRes.data.map((a) => [a.user_id, a]));
-  const aud = d.audience && d.audience.length ? d.audience : null;
+  const aud = d.kind === "commute" ? null : (d.audience && d.audience.length ? d.audience : null);
   const rows = profRes.data
-    .filter((p) => !aud || aud.includes(p.staff_group) || acks.has(p.id))
+    .filter((p) => {
+      if (d.kind === "commute") {
+        const r = routeMap.get(p.id);
+        return (r && r.mode === d.commute_mode) || acks.has(p.id);
+      }
+      return !aud || aud.includes(p.staff_group) || acks.has(p.id);
+    })
     .map((p) => ({
       name: p.full_name,
       group: p.staff_group || "",
+      route: routeMap.get(p.id) || null,
       position: p.position || "",
       ack: acks.get(p.id) || null
     }));
@@ -182,7 +289,7 @@ async function showReport(d) {
   const signed = rows.filter((r) => r.ack).length;
   $("report-title").textContent = d.title;
   $("report-summary").textContent =
-    `${aud ? "Хамрах бүлэг: " + aud.join(", ") + ". " : ""}Нийт ${rows.length} ажилтнаас ${signed} нь гарын үсэг зурсан, ${rows.length - signed} нь зураагүй.`;
+    `${d.kind === "commute" ? "Тээврийн хэлбэр: " + (MODES[d.commute_mode] || "") + ". " : ""}${aud ? "Хамрах бүлэг: " + aud.join(", ") + ". " : ""}Нийт ${rows.length} ажилтнаас ${signed} нь гарын үсэг зурсан, ${rows.length - signed} нь зураагүй.`;
   const body = $("report-body");
   body.replaceChildren();
   rows.forEach((r, i) => {
@@ -192,6 +299,7 @@ async function showReport(d) {
         el("td", {}, i + 1),
         el("td", {}, r.name),
         el("td", {}, r.group),
+        el("td", {}, r.route ? `${MODES[r.route.mode] || ""}, ${fmtKm(r.route.distance_m)}, ${r.route.duration_min} мин` : ""),
         el("td", {}, r.position),
         el("td", {}, el("span", { class: "badge " + (r.ack ? "ok" : "no") }, r.ack ? "Зурсан" : "Зураагүй")),
         el("td", {}, r.ack ? fmtDate(r.ack.signed_at) : ""),
@@ -212,10 +320,10 @@ function csvCell(v) {
 
 function downloadCsv() {
   if (!currentReport) return;
-  const lines = [["#", "Овог нэр", "Бүлэг", "Албан тушаал", "Төлөв", "Огноо"].map(csvCell).join(",")];
+  const lines = [["#", "Овог нэр", "Бүлэг", "Зам (тээвэр, зай, хугацаа)", "Албан тушаал", "Төлөв", "Огноо"].map(csvCell).join(",")];
   currentReport.rows.forEach((r, i) => {
     lines.push(
-      [i + 1, r.name, r.group, r.position, r.ack ? "Зурсан" : "Зураагүй", r.ack ? fmtDate(r.ack.signed_at) : ""]
+      [i + 1, r.name, r.group, r.route ? `${MODES[r.route.mode] || ""}, ${fmtKm(r.route.distance_m)}, ${r.route.duration_min} мин` : "", r.position, r.ack ? "Зурсан" : "Зураагүй", r.ack ? fmtDate(r.ack.signed_at) : ""]
         .map(csvCell).join(",")
     );
   });
@@ -240,6 +348,8 @@ $("form-login").addEventListener("submit", async (e) => {
   await route();
 });
 $("form-doc").addEventListener("submit", onCreateDoc);
+$("btn-save-loc").addEventListener("click", saveSchoolLoc);
+$("doc-kind").addEventListener("change", () => show("mode-wrap", $("doc-kind").value === "commute"));
 $("btn-csv").addEventListener("click", downloadCsv);
 $("btn-print").addEventListener("click", () => window.print());
 $("btn-print-qr").addEventListener("click", () => window.print());

@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ХАБЭА зааварчилгаа</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -49,10 +50,54 @@
     <div id="msg-join" class="msg" hidden></div>
   </section>
 
+  <!-- Нүүр: миний зам, миний зааварчилгаанууд -->
+  <section id="view-home" class="card" hidden>
+    <h2>Миний гэр–ажлын зам</h2>
+    <p id="route-summary" class="muted"></p>
+    <div class="row">
+      <button id="btn-change-route" class="secondary" type="button">Маршрут өөрчлөх</button>
+    </div>
+    <h2 style="margin-top:22px">Миний зааварчилгаанууд</h2>
+    <div id="my-docs"></div>
+  </section>
+
+  <!-- Гэр–ажлын маршрут тохируулах -->
+  <section id="view-route" class="card" hidden>
+    <h2>Гэр–ажлын зам</h2>
+    <p class="muted">Нэг удаа тохируулна. Таны замд тохирсон ХАБЭА зааварчилгаа автоматаар гарна. Яг гэрийн хаяг хадгалагдахгүй, зөвхөн ойролцоо хороолол, зай, хугацаа хадгалагдана.</p>
+    <form id="form-route">
+      <label for="route-mode">Ажилдаа ямар хэлбэрээр явдаг вэ?</label>
+      <select id="route-mode">
+        <option value="walk">Явган</option>
+        <option value="car">Өөрийн машин</option>
+        <option value="bus">Нийтийн тээвэр</option>
+        <option value="bike">Дугуй</option>
+      </select>
+      <label for="route-search">Гэрийн хаяг, хороолол хайх (заавал биш)</label>
+      <div class="row" style="margin:0 0 8px">
+        <input id="route-search" type="text" placeholder="Жишээ: Баянзүрх дүүрэг 13-р хороолол">
+        <button id="btn-search" class="secondary" type="button">Хайх</button>
+      </div>
+      <p class="muted">Газрын зураг дээр <strong>гэрийнхээ байршлыг товшиж</strong> сонгоно. Ногоон цэг нь сургууль.</p>
+      <div id="map" class="map"></div>
+      <label class="check">
+        <input id="route-consent" type="checkbox">
+        <span>Миний замын мэдээлэл (тээврийн хэлбэр, ойролцоо байршил, зай, хугацаа) ХАБЭА зорилгоор сургуулийн админд харагдахыг зөвшөөрч байна.</span>
+      </label>
+      <div class="row">
+        <button id="btn-route-save" type="submit">Маршрут тооцоолж хадгалах</button>
+        <button id="btn-route-cancel" class="secondary" type="button" hidden>Болих</button>
+      </div>
+    </form>
+    <div id="msg-route" class="msg" hidden></div>
+  </section>
+
   <!-- Зааварчилгаа + гарын үсэг -->
   <section id="view-doc" class="card" hidden>
+    <button id="btn-back" class="secondary" type="button" hidden>← Нүүр рүү</button>
     <h2 id="doc-title"></h2>
     <p id="doc-meta" class="muted"></p>
+    <img id="doc-image" class="poster" alt="Зааварчилгааны постер" hidden>
     <div id="doc-body" class="doc-body"></div>
 
     <div id="sign-area">
@@ -75,6 +120,7 @@
   </section>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <script src="common.js"></script>

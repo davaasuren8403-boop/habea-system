@@ -127,3 +127,82 @@ class SignaturePad {
     return this.canvas.toDataURL("image/png");
   }
 }
+
+// ---- Гэр–ажлын зам: тээврийн хэлбэр, газрын зураг (OpenStreetMap), маршрут ----
+const MODES = { walk: "Явган", car: "Өөрийн машин", bus: "Нийтийн тээвэр", bike: "Дугуй" };
+const UB_CENTER = [47.9184, 106.9177];
+
+function haversineM(a, b) {
+  const R = 6371000;
+  const rad = (x) => (x * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 +
+    Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+// Хаяг хайх (OpenStreetMap Nominatim, түлхүүр шаардахгүй)
+async function geocode(q) {
+  const url = "https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=mn&accept-language=mn&q=" +
+    encodeURIComponent(q);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Хаяг хайхад алдаа гарлаа");
+  return res.json();
+}
+
+// Маршрутын зай, хугацаа. Сервер хариу өгөхгүй бол шулуун зайгаас ойролцоо тооцно.
+async function calcRoute(mode, from, to) {
+  const coords = `${from.lng},${from.lat};${to.lng},${to.lat}`;
+  const base = {
+    walk: "https://routing.openstreetmap.de/routed-foot/route/v1/driving/",
+    bike: "https://routing.openstreetmap.de/routed-bike/route/v1/driving/",
+    car: "https://router.project-osrm.org/route/v1/driving/",
+    bus: "https://router.project-osrm.org/route/v1/driving/"
+  }[mode];
+  try {
+    const res = await fetch(base + coords + "?overview=false");
+    const j = await res.json();
+    if (j.code === "Ok" && j.routes && j.routes[0]) {
+      const r = j.routes[0];
+      let min = r.duration / 60;
+      // Нийтийн тээвэр: машины хугацаанаас удаан (буудал, хүлээлт) гэж тооцно
+      if (mode === "bus") min = min * 1.6 + 8;
+      // Явган, дугуйн хугацааг ажиллах серверийн профайл буруу байж болзошгүй тул зайгаар шалгана
+      const speed = { walk: 5, bike: 15 }[mode];
+      if (speed) min = Math.max(min, (r.distance / 1000 / speed) * 60 * 0.9);
+      return { distance_m: Math.round(r.distance), duration_min: Math.max(1, Math.round(min)), approx: false };
+    }
+  } catch (_) { /* доорх ойролцоо тооцоонд шилжинэ */ }
+  const d = haversineM(from, to) * 1.35;
+  const kmh = { walk: 5, bike: 14, car: 25, bus: 18 }[mode];
+  return { distance_m: Math.round(d), duration_min: Math.max(1, Math.round((d / 1000 / kmh) * 60)), approx: true };
+}
+
+function fmtKm(m) {
+  return (m / 1000).toFixed(1) + " км";
+}
+
+// Leaflet газрын зураг: товшиж цэг сонгоно
+function makePickMap(elId, center, onPick) {
+  const map = L.map(elId).setView(center, 13);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19, attribution: "© OpenStreetMap"
+  }).addTo(map);
+  let marker = null;
+  const api = {
+    map,
+    setPoint(lat, lng) {
+      if (marker) marker.setLatLng([lat, lng]);
+      else marker = L.marker([lat, lng]).addTo(map);
+    },
+    addFixed(lat, lng, label) {
+      L.circleMarker([lat, lng], { radius: 9, color: "#0a5", fillOpacity: 0.7 }).addTo(map).bindTooltip(label);
+    }
+  };
+  map.on("click", (e) => {
+    api.setPoint(e.latlng.lat, e.latlng.lng);
+    onPick({ lat: e.latlng.lat, lng: e.latlng.lng });
+  });
+  return api;
+}

@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ХАБЭА админ</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -38,8 +39,24 @@
       <form id="form-doc">
         <label for="doc-title">Гарчиг</label>
         <input id="doc-title" type="text" required>
+        <label for="doc-kind">Төрөл</label>
+        <select id="doc-kind">
+          <option value="general">Ердийн зааварчилгаа</option>
+          <option value="commute">Гэр–ажлын замын заавар (тээврийн хэлбэрээр)</option>
+        </select>
+        <div id="mode-wrap" hidden>
+          <label for="doc-mode">Аль тээврийн хэлбэрт зориулсан бэ?</label>
+          <select id="doc-mode">
+            <option value="walk">Явган</option>
+            <option value="car">Өөрийн машин</option>
+            <option value="bus">Нийтийн тээвэр</option>
+            <option value="bike">Дугуй</option>
+          </select>
+        </div>
         <label for="doc-body">Зааварчилгааны текст</label>
         <textarea id="doc-body" required></textarea>
+        <label for="doc-image">Постер, зураг (заавал биш, PNG/JPG/WebP, 2 МБ хүртэл)</label>
+        <input id="doc-image" type="file" accept="image/png,image/jpeg,image/webp">
         <label>Хэнд хамаарах вэ? <span class="muted">(юу ч сонгохгүй бол бүх ажилтан)</span></label>
         <div id="doc-audience" class="groups"></div>
         <label for="doc-deadline">Танилцаж дуусах хугацаа (заавал биш)</label>
@@ -47,6 +64,28 @@
         <div class="row"><button type="submit">Хадгалах</button></div>
       </form>
       <div id="msg-doc" class="msg" hidden></div>
+    </section>
+
+    <section class="card no-print">
+      <h2>Сургуулийн байршил</h2>
+      <p class="muted">Ажилтнуудын гэр–ажлын замыг тооцоолоход хэрэгтэй. Нэг удаа тохируулна: газрын зураг дээр сургуулиа товшино.</p>
+      <p id="school-loc-status" class="muted"></p>
+      <div id="admin-map" class="map"></div>
+      <div class="row">
+        <button id="btn-save-loc" type="button">Сургуулийн байршлыг хадгалах</button>
+      </div>
+      <div id="msg-loc" class="msg" hidden></div>
+    </section>
+
+    <section class="card no-print">
+      <h2>Ажилтнуудын гэр–ажлын зам</h2>
+      <p id="route-stats" class="muted"></p>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Овог нэр</th><th>Бүлэг</th><th>Тээвэр</th><th>Зай</th><th>Хугацаа</th></tr></thead>
+          <tbody id="route-body"></tbody>
+        </table>
+      </div>
     </section>
 
     <section class="card no-print">
@@ -83,7 +122,7 @@
       <div style="overflow-x:auto; margin-top:12px">
         <table>
           <thead>
-            <tr><th>#</th><th>Овог нэр</th><th>Бүлэг</th><th>Албан тушаал</th><th>Төлөв</th><th>Огноо</th><th>Гарын үсэг</th></tr>
+            <tr><th>#</th><th>Овог нэр</th><th>Бүлэг</th><th>Зам</th><th>Албан тушаал</th><th>Төлөв</th><th>Огноо</th><th>Гарын үсэг</th></tr>
           </thead>
           <tbody id="report-body"></tbody>
         </table>
@@ -93,6 +132,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <script src="common.js"></script>

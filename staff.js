@@ -4,9 +4,14 @@ let authMode = "login";
 let pad = null;
 let currentUser = null;
 let currentDoc = null;
+let currentProfile = null;
+let currentSchool = null;
+let routeMap = null;
+let homePoint = null;
+let hasRoute = false;
 
 function hideViews() {
-  for (const id of ["view-auth", "view-join", "view-doc"]) show(id, false);
+  for (const id of ["view-auth", "view-join", "view-doc", "view-home", "view-route"]) show(id, false);
 }
 
 async function route() {
@@ -34,11 +39,147 @@ async function route() {
     show("view-join");
     return;
   }
+  currentProfile = profile;
   if (!docId) {
-    setMsg("msg-global", "Бүртгэл бэлэн боллоо. Зааварчилгааны QR кодыг уншуулж орно уу.");
+    await loadHome();
     return;
   }
   await loadDoc();
+}
+
+// ---- Нүүр: миний зам + миний зааварчилгаанууд ----
+async function loadHome() {
+  const [routeRes, schoolRes] = await Promise.all([
+    sb.from("commute_routes").select("*").eq("user_id", currentUser.id).maybeSingle(),
+    sb.from("schools").select("work_lat, work_lng, work_name").eq("id", currentProfile.school_id).maybeSingle()
+  ]);
+  currentSchool = schoolRes.data;
+  hasRoute = !!routeRes.data;
+  if (!routeRes.data) {
+    showRouteSetup(false);
+    return;
+  }
+  const r = routeRes.data;
+  $("route-summary").textContent =
+    `${MODES[r.mode] || r.mode} · ойролцоогоор ${fmtKm(r.distance_m)} · ${r.duration_min} минут`;
+  show("view-home");
+  await loadMyDocs(r);
+}
+
+async function loadMyDocs(route) {
+  const box = $("my-docs");
+  box.replaceChildren();
+  const { data: docs, error } = await sb
+    .from("documents").select("id, title, audience, kind, commute_mode, active")
+    .eq("active", true).order("created_at", { ascending: false });
+  if (error) {
+    box.append(el("p", { class: "muted" }, translateError(error)));
+    return;
+  }
+  const mine = docs.filter((d) => {
+    if (d.kind === "commute") return d.commute_mode === route.mode;
+    return !d.audience || !d.audience.length || d.audience.includes(currentProfile.staff_group);
+  });
+  const { data: acks } = await sb.from("acknowledgements").select("document_id").eq("user_id", currentUser.id);
+  const signed = new Set((acks || []).map((a) => a.document_id));
+  if (!mine.length) {
+    box.append(el("p", { class: "muted" }, "Танд хамаарах зааварчилгаа одоогоор алга."));
+    return;
+  }
+  // Гэр–ажлын зам эхэндээ
+  mine.sort((a, b) => (a.kind === "commute" ? -1 : 0) - (b.kind === "commute" ? -1 : 0));
+  for (const d of mine) {
+    const done = signed.has(d.id);
+    box.append(
+      el("div", { class: "doc-link" },
+        el("div", {},
+          el("strong", {}, d.title),
+          el("div", { class: "muted" }, d.kind === "commute" ? "Гэр–ажлын зам" : "Ерөнхий")),
+        el("div", { class: "row", style: "margin:0" },
+          el("span", { class: "badge " + (done ? "ok" : "no") }, done ? "Зурсан" : "Зураагүй"),
+          el("a", { class: "btn", href: "index.html?doc=" + encodeURIComponent(d.id) }, done ? "Харах" : "Унших"))
+      )
+    );
+  }
+}
+
+// ---- Маршрут тохируулах (OpenStreetMap) ----
+function showRouteSetup(canCancel) {
+  setMsg("msg-route", "");
+  show("view-home", false);
+  show("view-route");
+  show("btn-route-cancel", canCancel);
+  if (!currentSchool || currentSchool.work_lat == null) {
+    setMsg("msg-route", "Сургуулийн байршлыг админ тохируулаагүй байна. Админд хэлнэ үү.", "error");
+  }
+  const work = currentSchool && currentSchool.work_lat != null
+    ? { lat: currentSchool.work_lat, lng: currentSchool.work_lng } : null;
+  homePoint = null;
+  if (!routeMap) {
+    routeMap = makePickMap("map", work ? [work.lat, work.lng] : UB_CENTER, (p) => { homePoint = p; });
+  }
+  if (work) {
+    routeMap.map.setView([work.lat, work.lng], 13);
+    routeMap.addFixed(work.lat, work.lng, currentSchool.work_name || "Сургууль");
+  }
+  setTimeout(() => routeMap.map.invalidateSize(), 150);
+}
+
+async function onSearch() {
+  const q = $("route-search").value.trim();
+  if (!q) return;
+  setMsg("msg-route", "Хайж байна...");
+  try {
+    const found = await geocode(q);
+    if (!found.length) {
+      setMsg("msg-route", "Хаяг олдсонгүй. Газрын зургаас гараараа товшиж сонгоно уу.", "error");
+      return;
+    }
+    const f = found[0];
+    routeMap.map.setView([parseFloat(f.lat), parseFloat(f.lon)], 15);
+    setMsg("msg-route", "Олдлоо. Одоо газрын зураг дээр яг гэрийнхээ байршлыг товшино уу.");
+  } catch (err) {
+    setMsg("msg-route", "Хайлт ажиллахгүй байна. Газрын зургаас гараараа товшиж сонгоно уу.", "error");
+  }
+}
+
+async function onRouteSave(e) {
+  e.preventDefault();
+  if (!currentSchool || currentSchool.work_lat == null) {
+    setMsg("msg-route", "Сургуулийн байршлыг админ тохируулаагүй байна.", "error");
+    return;
+  }
+  if (!homePoint) {
+    setMsg("msg-route", "Газрын зураг дээр гэрийнхээ байршлыг товшиж сонгоно уу.", "error");
+    return;
+  }
+  if (!$("route-consent").checked) {
+    setMsg("msg-route", "Зөвшөөрлийн нүдийг тэмдэглэнэ үү.", "error");
+    return;
+  }
+  const mode = $("route-mode").value;
+  $("btn-route-save").disabled = true;
+  setMsg("msg-route", "Маршрут тооцоолж байна...");
+  try {
+    const work = { lat: currentSchool.work_lat, lng: currentSchool.work_lng };
+    const r = await calcRoute(mode, homePoint, work);
+    // Яг байршлыг илгээхгүй: ~1 км-ийн нарийвчлалтай болгож хадгална
+    const round2 = (x) => Math.round(x * 100) / 100;
+    const { error } = await sb.rpc("save_my_route", {
+      p_mode: mode,
+      p_lat: round2(homePoint.lat),
+      p_lng: round2(homePoint.lng),
+      p_distance: r.distance_m,
+      p_duration: r.duration_min
+    });
+    if (error) throw error;
+    setMsg("msg-route", "");
+    await loadHome();
+  } catch (err) {
+    setMsg("msg-route", translateError(err), "error");
+  } finally {
+    $("btn-route-save").disabled = false;
+  }
 }
 
 async function loadDoc() {
@@ -56,6 +197,15 @@ async function loadDoc() {
   $("doc-title").textContent = doc.title;
   $("doc-body").textContent = doc.body;
   const aud = doc.audience && doc.audience.length ? "Хамрах бүлэг: " + doc.audience.join(", ") : "";
+  const img = $("doc-image");
+  if (doc.image_url) {
+    img.src = doc.image_url;
+    img.hidden = false;
+  } else {
+    img.hidden = true;
+    img.removeAttribute("src");
+  }
+  show("btn-back", true);
   $("doc-meta").textContent = [doc.deadline ? "Дуусах хугацаа: " + doc.deadline : "", aud].filter(Boolean).join(" · ");
   show("view-doc");
 
@@ -148,6 +298,13 @@ async function onSubmit() {
 
 for (const g of STAFF_GROUPS) $("join-group").append(el("option", { value: g }, g));
 $("join-group").insertBefore(el("option", { value: "", selected: "selected", disabled: "disabled" }, "Сонгоно уу"), $("join-group").firstChild);
+
+$("form-route").addEventListener("submit", onRouteSave);
+$("btn-search").addEventListener("click", onSearch);
+$("route-search").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); onSearch(); } });
+$("btn-change-route").addEventListener("click", () => showRouteSetup(true));
+$("btn-route-cancel").addEventListener("click", () => { show("view-route", false); show("view-home"); });
+$("btn-back").addEventListener("click", () => { location.href = location.pathname; });
 
 $("tab-login").addEventListener("click", () => setAuthMode("login"));
 $("tab-register").addEventListener("click", () => setAuthMode("register"));

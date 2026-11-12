@@ -91,3 +91,9 @@ td img.sig { height: 40px; background: #fff; border: 1px solid var(--border); bo
 
 .groups { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 6px 0 4px; }
 .groups label.check { margin: 0; font-weight: normal; }
+
+.map { height: 320px; border-radius: 10px; border: 1px solid #ccc; margin: 6px 0 12px; }
+.poster { display: block; max-width: 100%; height: auto; border-radius: 10px; margin: 10px 0; }
+.row input[type=text] { flex: 1; }
+.doc-link { display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid #e3e3e3; }
