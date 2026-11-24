@@ -145,13 +145,14 @@ function haversineM(a, b) {
 
 // Хаяг хайх: эхлээд OpenStreetMap Nominatim, олдохгүй бол Photon, дараа нь хаягийн төгсгөлийг
 // (байшин, хашааны дугаар) хасаж давтана. near = {lat,lng} өгвөл сургуулийн орчмыг түрүүлнэ.
-async function geocodeOnce(q, near) {
+async function geocodeOnce(q, near, boundKm) {
   const out = [];
+  const inside = (lat, lon) => !boundKm || !near || haversineM(near, { lat, lng: lon }) <= boundKm * 1000;
   try {
-    let url = "https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=mn&accept-language=mn&q=" + encodeURIComponent(q);
+    let url = "https://nominatim.openstreetmap.org/search?format=json&limit=8&countrycodes=mn&accept-language=mn&q=" + encodeURIComponent(q);
     if (near) {
-      const d = 0.5;
-      url += `&viewbox=${near.lng - d},${near.lat + d},${near.lng + d},${near.lat - d}`;
+      const d = boundKm ? boundKm / 111 : 0.5;
+      url += `&viewbox=${near.lng - d},${near.lat + d},${near.lng + d},${near.lat - d}` + (boundKm ? "&bounded=1" : "");
     }
     const res = await fetch(url);
     if (res.ok) {
@@ -160,7 +161,7 @@ async function geocodeOnce(q, near) {
   } catch (_) { /* Photon руу шилжинэ */ }
   if (out.length) return out;
   try {
-    let url = "https://photon.komoot.io/api/?limit=5&q=" + encodeURIComponent(q);
+    let url = "https://photon.komoot.io/api/?limit=10&q=" + encodeURIComponent(q);
     if (near) url += `&lat=${near.lat}&lon=${near.lng}`;
     const res = await fetch(url);
     if (res.ok) {
@@ -168,27 +169,30 @@ async function geocodeOnce(q, near) {
       (j.features || []).forEach((f) => {
         const p = f.properties || {};
         if (p.countrycode && p.countrycode !== "MN") return;
-        out.push({
-          lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0],
-          name: [p.name, p.street, p.district, p.city, p.state].filter(Boolean).join(", ")
-        });
+        const lat = f.geometry.coordinates[1], lon = f.geometry.coordinates[0];
+        if (!inside(lat, lon)) return;
+        out.push({ lat, lon, name: [p.name, p.street, p.district, p.city, p.state].filter(Boolean).join(", ") });
       });
     }
   } catch (_) { /* хоосон буцаана */ }
   return out;
 }
 
+// Эхлээд сургуулийн орчим (сумын төв, ~6 км) дотроос хайна. Олдохгүй бол өргөн хүрээнд хайна.
 async function geocode(q, near) {
   const words = q.trim().split(/\s+/);
-  for (let n = words.length; n >= Math.min(2, words.length); n--) {
-    const found = await geocodeOnce(words.slice(0, n).join(" "), near);
-    if (found.length) return { results: found, exact: n === words.length };
+  const passes = near ? [6, 0] : [0];
+  for (const km of passes) {
+    for (let n = words.length; n >= Math.min(2, words.length); n--) {
+      const found = await geocodeOnce(words.slice(0, n).join(" "), near, km);
+      if (found.length) return { results: found, exact: n === words.length, local: km > 0 };
+    }
   }
-  return { results: [], exact: false };
+  return { results: [], exact: false, local: false };
 }
 
 // Маршрутын зай, хугацаа. Сервер хариу өгөхгүй бол шулуун зайгаас ойролцоо тооцно.
-async function calcRoute(mode, from, to) {
+async function calcRoute(mode, from, to, withGeom) {
   const coords = `${from.lng},${from.lat};${to.lng},${to.lat}`;
   const base = {
     walk: "https://routing.openstreetmap.de/routed-foot/route/v1/driving/",
@@ -197,7 +201,7 @@ async function calcRoute(mode, from, to) {
     bus: "https://router.project-osrm.org/route/v1/driving/"
   }[mode];
   try {
-    const res = await fetch(base + coords + "?overview=false");
+    const res = await fetch(base + coords + (withGeom ? "?overview=full&geometries=geojson" : "?overview=false"));
     const j = await res.json();
     if (j.code === "Ok" && j.routes && j.routes[0]) {
       const r = j.routes[0];
@@ -207,12 +211,14 @@ async function calcRoute(mode, from, to) {
       // Явган, дугуйн хугацааг ажиллах серверийн профайл буруу байж болзошгүй тул зайгаар шалгана
       const speed = { walk: 5, bike: 15 }[mode];
       if (speed) min = Math.max(min, (r.distance / 1000 / speed) * 60 * 0.9);
-      return { distance_m: Math.round(r.distance), duration_min: Math.max(1, Math.round(min)), approx: false };
+      return { distance_m: Math.round(r.distance), duration_min: Math.max(1, Math.round(min)), approx: false,
+        coords: withGeom && r.geometry ? r.geometry.coordinates.map((p) => [p[1], p[0]]) : null };
     }
   } catch (_) { /* доорх ойролцоо тооцоонд шилжинэ */ }
   const d = haversineM(from, to) * 1.35;
   const kmh = { walk: 5, bike: 14, car: 25, bus: 18 }[mode];
-  return { distance_m: Math.round(d), duration_min: Math.max(1, Math.round((d / 1000 / kmh) * 60)), approx: true };
+  return { distance_m: Math.round(d), duration_min: Math.max(1, Math.round((d / 1000 / kmh) * 60)), approx: true,
+    coords: withGeom ? [[from.lat, from.lng], [to.lat, to.lng]] : null };
 }
 
 function fmtKm(m) {

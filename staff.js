@@ -8,6 +8,9 @@ let currentProfile = null;
 let currentSchool = null;
 let routeMap = null;
 let homePoint = null;
+let routeLine = null;
+let schoolMarked = false;
+let previewSeq = 0;
 let hasRoute = false;
 let bundleDocs = [];
 let bundlePad = null;
@@ -140,19 +143,41 @@ function showRouteSetup(canCancel) {
     ? { lat: currentSchool.work_lat, lng: currentSchool.work_lng } : null;
   homePoint = null;
   if (!routeMap) {
-    routeMap = makePickMap("map", work ? [work.lat, work.lng] : UB_CENTER, (p) => { homePoint = p; });
+    routeMap = makePickMap("map", work ? [work.lat, work.lng] : UB_CENTER, (p) => { homePoint = p; previewRoute(); });
   }
   if (work) {
-    routeMap.map.setView([work.lat, work.lng], 13);
-    routeMap.addFixed(work.lat, work.lng, currentSchool.work_name || "Сургууль");
+    routeMap.map.setView([work.lat, work.lng], 15);
+    if (!schoolMarked) {
+      routeMap.addFixed(work.lat, work.lng, currentSchool.work_name || "Сургууль");
+      schoolMarked = true;
+    }
+    if (routeLine) { routeMap.map.removeLayer(routeLine); routeLine = null; }
   }
   setTimeout(() => routeMap.map.invalidateSize(), 150);
+}
+
+// Гэр сонгогдмогц сургууль хүртэлх маршрутыг газрын зураг дээр автоматаар зурна (сургуулийн цэг хөдөлдөггүй)
+async function previewRoute() {
+  if (!homePoint || !currentSchool || currentSchool.work_lat == null) return;
+  const seq = ++previewSeq;
+  const work = { lat: currentSchool.work_lat, lng: currentSchool.work_lng };
+  const mode = $("route-mode").value;
+  try {
+    const r = await calcRoute(mode, homePoint, work, true);
+    if (seq !== previewSeq) return;
+    if (routeLine) routeMap.map.removeLayer(routeLine);
+    routeLine = L.polyline(r.coords, { color: "#1d6fd8", weight: 5, opacity: 0.8, dashArray: r.approx ? "8 8" : null }).addTo(routeMap.map);
+    routeMap.map.fitBounds(routeLine.getBounds().pad(0.2));
+    setMsg("msg-route", (currentSchool.work_name || "Сургууль") + " хүртэл (" + MODES[mode] + "): " + fmtKm(r.distance_m) + ", ойролцоогоор " + r.duration_min + " мин" +
+      (r.approx ? " (шулуун зайгаас тооцсон)" : "") + ". Гэрийн тэмдэг буруу бол газрын зураг дээр хашаагаа товшиж засна уу.");
+  } catch (_) { /* маршрут зурагдаагүй ч хадгалах боломжтой */ }
 }
 
 function pickHome(lat, lng, zoom) {
   homePoint = { lat, lng };
   routeMap.setPoint(lat, lng);
   routeMap.map.setView([lat, lng], zoom || 17);
+  previewRoute();
 }
 
 async function onSearch() {
@@ -164,14 +189,14 @@ async function onSearch() {
   try {
     const near = currentSchool && currentSchool.work_lat != null
       ? { lat: currentSchool.work_lat, lng: currentSchool.work_lng } : null;
-    const { results, exact } = await geocode(q, near);
+    const { results, exact, local } = await geocode(q, near);
     if (!results.length) {
       setMsg("msg-route", "Хаяг олдсонгүй. Дүүрэг/сум, баг/хорооны нэрээр хайж үзэх эсвэл газрын зургаас гараараа товшиж сонгоно уу.", "error");
       return;
     }
     const f = results[0];
     pickHome(f.lat, f.lon, exact ? 17 : 15);
-    setMsg("msg-route", (exact ? "Олдлоо" : "Яг хаяг олдсонгүй, ойролцоо газрыг харууллаа") +
+    setMsg("msg-route", (local ? "Сумын төвөөс олдлоо" : exact ? "Олдлоо" : "Яг хаяг олдсонгүй, ойролцоо газрыг харууллаа") +
       ": " + f.name + ". Улаан тэмдэг гэрийн байршил биш бол газрын зураг дээр хашаагаа товшиж засна уу.");
     if (results.length > 1) {
       results.slice(1).forEach((r) => {
@@ -195,6 +220,7 @@ async function onMyLoc() {
     homePoint = { lat: p.lat, lng: p.lng };
     routeMap.setPoint(p.lat, p.lng);
     routeMap.map.setView([p.lat, p.lng], 15);
+    previewRoute();
     setMsg("msg-route", "Одоогийн байршлыг гэр болгон сонголоо. Буруу бол газрын зураг дээр товшиж засна уу. Хадгалахад зөвхөн ~1 км-ийн нарийвчлалтай бүс хадгална.");
   } catch (err) {
     setMsg("msg-route", err.message, "error");
@@ -431,6 +457,7 @@ $("form-route").addEventListener("submit", onRouteSave);
 $("btn-save-groups").addEventListener("click", onMyGroups);
 $("btn-my-loc").addEventListener("click", onMyLoc);
 $("btn-search").addEventListener("click", onSearch);
+$("route-mode").addEventListener("change", previewRoute);
 $("route-search").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); onSearch(); } });
 $("btn-change-route").addEventListener("click", () => showRouteSetup(true));
 $("btn-route-cancel").addEventListener("click", () => { show("view-route", false); show("view-home"); });
