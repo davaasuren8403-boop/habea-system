@@ -231,9 +231,15 @@ function makePickMap(elId, center, onPick) {
   const map = L.map(elId, { scrollWheelZoom: false }).setView(center, 13);
   map.once("focus", () => map.scrollWheelZoom.enable());
   map.on("click", () => map.scrollWheelZoom.enable());
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  const street = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19, attribution: "© OpenStreetMap"
-  }).addTo(map);
+  });
+  // Сансрын зураг (Esri World Imagery, түлхүүр шаардахгүй): хашаа, байшинг нүдээр харж товшино
+  const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+    maxZoom: 19, maxNativeZoom: 17, attribution: "Tiles © Esri, Maxar, Earthstar Geographics"
+  });
+  street.addTo(map);
+  L.control.layers({ "Гудамж": street, "Сансар": sat }, null, { position: "topright", collapsed: false }).addTo(map);
   let marker = null;
   const api = {
     map,
