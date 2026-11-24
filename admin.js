@@ -82,12 +82,12 @@ async function searchSchoolLoc() {
   if (!q) return;
   setMsg("msg-loc", "Хайж байна...");
   try {
-    const found = await geocode(q);
+    const { results: found } = await geocode(q);
     if (!found.length) {
       setMsg("msg-loc", "Хаяг олдсонгүй. Газрын зургийг гараараа томруулж товшино уу.", "error");
       return;
     }
-    adminMap.map.setView([parseFloat(found[0].lat), parseFloat(found[0].lon)], 16);
+    adminMap.map.setView([found[0].lat, found[0].lon], 16);
     setMsg("msg-loc", "Олдлоо. Одоо сургуулийн яг байрлал дээр товшино уу.");
   } catch (_) {
     setMsg("msg-loc", "Хайлт ажиллахгүй байна. Газрын зургийг гараараа томруулж товшино уу.", "error");

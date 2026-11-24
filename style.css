@@ -106,3 +106,6 @@ td img.sig { height: 40px; background: #fff; border: 1px solid var(--border); bo
 .bundle-item h3 { margin: 0 0 4px; }
 .bundle-item .doc-body { max-height: none; }
 #bundle-cta { margin: 10px 0 14px; }
+
+.results { display: flex; flex-direction: column; gap: 6px; margin: 0 0 8px; }
+.result-btn { text-align: left; font-size: .85rem; }

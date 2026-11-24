@@ -149,19 +149,40 @@ function showRouteSetup(canCancel) {
   setTimeout(() => routeMap.map.invalidateSize(), 150);
 }
 
+function pickHome(lat, lng, zoom) {
+  homePoint = { lat, lng };
+  routeMap.setPoint(lat, lng);
+  routeMap.map.setView([lat, lng], zoom || 17);
+}
+
 async function onSearch() {
   const q = $("route-search").value.trim();
   if (!q) return;
+  const box = $("route-results");
+  box.replaceChildren();
   setMsg("msg-route", "Хайж байна...");
   try {
-    const found = await geocode(q);
-    if (!found.length) {
-      setMsg("msg-route", "Хаяг олдсонгүй. Газрын зургаас гараараа товшиж сонгоно уу.", "error");
+    const near = currentSchool && currentSchool.work_lat != null
+      ? { lat: currentSchool.work_lat, lng: currentSchool.work_lng } : null;
+    const { results, exact } = await geocode(q, near);
+    if (!results.length) {
+      setMsg("msg-route", "Хаяг олдсонгүй. Дүүрэг/сум, баг/хорооны нэрээр хайж үзэх эсвэл газрын зургаас гараараа товшиж сонгоно уу.", "error");
       return;
     }
-    const f = found[0];
-    routeMap.map.setView([parseFloat(f.lat), parseFloat(f.lon)], 15);
-    setMsg("msg-route", "Олдлоо. Одоо газрын зураг дээр яг гэрийнхээ байршлыг товшино уу.");
+    const f = results[0];
+    pickHome(f.lat, f.lon, exact ? 17 : 15);
+    setMsg("msg-route", (exact ? "Олдлоо" : "Яг хаяг олдсонгүй, ойролцоо газрыг харууллаа") +
+      ": " + f.name + ". Улаан тэмдэг гэрийн байршил биш бол газрын зураг дээр хашаагаа товшиж засна уу.");
+    if (results.length > 1) {
+      results.slice(1).forEach((r) => {
+        const b = el("button", { type: "button", class: "secondary result-btn" }, r.name);
+        b.addEventListener("click", () => {
+          pickHome(r.lat, r.lon, 17);
+          setMsg("msg-route", "Сонгосон: " + r.name + ". Буруу бол газрын зураг дээр хашаагаа товшиж засна уу.");
+        });
+        box.append(b);
+      });
+    }
   } catch (err) {
     setMsg("msg-route", "Хайлт ажиллахгүй байна. Газрын зургаас гараараа товшиж сонгоно уу.", "error");
   }

@@ -143,13 +143,48 @@ function haversineM(a, b) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-// Хаяг хайх (OpenStreetMap Nominatim, түлхүүр шаардахгүй)
-async function geocode(q) {
-  const url = "https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=mn&accept-language=mn&q=" +
-    encodeURIComponent(q);
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("Хаяг хайхад алдаа гарлаа");
-  return res.json();
+// Хаяг хайх: эхлээд OpenStreetMap Nominatim, олдохгүй бол Photon, дараа нь хаягийн төгсгөлийг
+// (байшин, хашааны дугаар) хасаж давтана. near = {lat,lng} өгвөл сургуулийн орчмыг түрүүлнэ.
+async function geocodeOnce(q, near) {
+  const out = [];
+  try {
+    let url = "https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=mn&accept-language=mn&q=" + encodeURIComponent(q);
+    if (near) {
+      const d = 0.5;
+      url += `&viewbox=${near.lng - d},${near.lat + d},${near.lng + d},${near.lat - d}`;
+    }
+    const res = await fetch(url);
+    if (res.ok) {
+      (await res.json()).forEach((f) => out.push({ lat: parseFloat(f.lat), lon: parseFloat(f.lon), name: f.display_name }));
+    }
+  } catch (_) { /* Photon руу шилжинэ */ }
+  if (out.length) return out;
+  try {
+    let url = "https://photon.komoot.io/api/?limit=5&q=" + encodeURIComponent(q);
+    if (near) url += `&lat=${near.lat}&lon=${near.lng}`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const j = await res.json();
+      (j.features || []).forEach((f) => {
+        const p = f.properties || {};
+        if (p.countrycode && p.countrycode !== "MN") return;
+        out.push({
+          lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0],
+          name: [p.name, p.street, p.district, p.city, p.state].filter(Boolean).join(", ")
+        });
+      });
+    }
+  } catch (_) { /* хоосон буцаана */ }
+  return out;
+}
+
+async function geocode(q, near) {
+  const words = q.trim().split(/\s+/);
+  for (let n = words.length; n >= Math.min(2, words.length); n--) {
+    const found = await geocodeOnce(words.slice(0, n).join(" "), near);
+    if (found.length) return { results: found, exact: n === words.length };
+  }
+  return { results: [], exact: false };
 }
 
 // Маршрутын зай, хугацаа. Сервер хариу өгөхгүй бол шулуун зайгаас ойролцоо тооцно.
