@@ -127,8 +127,10 @@ async function loadMyDocs(route) {
     byType.get(t).push(d);
   }
   for (const [t, list] of byType) {
-    xbox.append(el("h3", { style: "margin:14px 0 6px" }, t));
-    for (const d of list) xbox.append(docRow(d, signed.has(d.id), true));
+    const det = el("details", { style: "margin:8px 0" },
+      el("summary", { style: "cursor:pointer;font-weight:600;padding:8px 0" }, t + " (" + list.length + ")"));
+    for (const d of list) det.append(docRow(d, signed.has(d.id), true));
+    xbox.append(det);
   }
   if (!mine.length) {
     box.append(el("p", { class: "muted" }, "Танд хамаарах зааварчилгаа одоогоор алга."));
