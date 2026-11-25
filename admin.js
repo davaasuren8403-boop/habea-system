@@ -199,9 +199,21 @@ async function loadStaff() {
     list.append(
       el("div", { class: "doc-item" },
         el("div", {}, el("strong", {}, p.full_name), el("div", { class: "muted" }, p.position || "")),
-        el("details", { style: "max-width:420px" }, summary, box, save))
+        el("details", { style: "max-width:420px" }, summary, box, save, delBtn(p)))
     );
   }
+}
+
+async function deleteStaff(p, after) {
+  if (!confirm("«" + p.full_name + "» ажилтныг системээс БҮРЭН УСТГАХ уу?\nТүүний бүх гарын үсэг, замын мэдээлэл, нэвтрэх эрх устна. Буцаах боломжгүй.")) return;
+  const { error } = await sb.rpc("delete_staff", { p_user: p.id });
+  if (error) { setMsg("msg-global", "Устгаж чадсангүй: " + translateError(error), "error"); return; }
+  setMsg("msg-global", p.full_name + " устгагдлаа.");
+  await loadStaff();
+  if (after) await after();
+}
+function delBtn(p, after) {
+  return el("button", { type: "button", class: "secondary no-print", style: "color:#b00020;margin-left:8px;padding:2px 8px", onclick: () => deleteStaff(p, after) }, "Устгах");
 }
 
 async function loadDocs() {
@@ -525,6 +537,7 @@ async function showReport(d, day) {
       return !aud || groupsOf(p).some((g) => aud.includes(g)) || acks.has(p.id);
     })
     .map((p) => ({
+      p,
       name: p.full_name,
       group: groupsOf(p).join(", "),
       route: routeMap.get(p.id) || null,
@@ -545,7 +558,7 @@ async function showReport(d, day) {
     body.append(
       el("tr", {},
         el("td", {}, i + 1),
-        el("td", {}, r.name),
+        el("td", {}, r.name, delBtn(r.p, () => showReport(currentReport.doc, $("report-date").value))),
         el("td", {}, r.group),
         el("td", {}, r.route ? `${MODES[r.route.mode] || ""}, ${fmtKm(r.route.distance_m)}, ${r.route.duration_min} мин` : ""),
         el("td", {}, r.position),
@@ -605,7 +618,7 @@ async function showDaily() {
   dailyData.rows.forEach((r, i) => {
     const first = [...r.acks.values()][0];
     body.append(el("tr", {},
-      el("td", {}, i + 1), el("td", {}, r.p.full_name), el("td", {}, groupsOf(r.p).join(", ")),
+      el("td", {}, i + 1), el("td", {}, r.p.full_name, delBtn(r.p, showDaily)), el("td", {}, groupsOf(r.p).join(", ")),
       ...cols.map((c) => {
         const ak = r.acks.get(c.id);
         return el("td", {}, ak ? el("span", { class: "badge ok" }, new Date(ak.signed_at).toLocaleTimeString("mn-MN", { hour: "2-digit", minute: "2-digit" })) : el("span", { class: "badge no" }, "—"));
