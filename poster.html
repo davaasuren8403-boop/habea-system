@@ -108,7 +108,9 @@ function texts() {
   document.title = "QR постер – " + orgIn.value;
 }
 orgIn.addEventListener("input", texts); sloIn.addEventListener("input", texts); texts();
-const url = new URL("index.html?code=" + encodeURIComponent(code), location.href).href;
+const LIVE = "https://davaasuren8403-boop.github.io/habea-system/";
+const base = /^https?:/.test(location.protocol) ? location.href : LIVE;
+const url = new URL("index.html?code=" + encodeURIComponent(code), base).href;
 try { new QRCode(document.getElementById("qr"), { text: url, width: 400, height: 400, correctLevel: QRCode.CorrectLevel.H }); } catch (e) { document.getElementById("qr").textContent = "QR ачаалагдсангүй. Интернэтээ шалгаад хуудсаа шинэчилнэ үү."; }
 let logoSrc = "logo.jpg";
 function applyLogo() {
