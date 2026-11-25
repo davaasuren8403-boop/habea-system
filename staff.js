@@ -91,13 +91,15 @@ async function loadMyDocs(route) {
   const box = $("my-docs");
   box.replaceChildren();
   const { data: docs, error } = await sb
-    .from("documents").select("id, title, audience, kind, commute_mode, frequency, target_users, active")
+    .from("documents").select("id, title, audience, kind, commute_mode, frequency, target_users, active, extra_type")
     .eq("active", true).order("created_at", { ascending: false });
   if (error) {
     box.append(el("p", { class: "muted" }, translateError(error)));
     return;
   }
+  const extras = docs.filter((d) => d.kind === "extra");
   const mine = docs.filter((d) => {
+    if (d.kind === "extra") return false;
     if (d.kind === "commute") return d.commute_mode === route.mode;
     if (d.target_users && d.target_users.length) return d.target_users.includes(currentUser.id);
     return !d.audience || !d.audience.length || groupsOf(currentProfile).some((g) => d.audience.includes(g));
@@ -106,8 +108,31 @@ async function loadMyDocs(route) {
   const today = todayUB();
   const freq = new Map(docs.map((d) => [d.id, d.frequency]));
   const signed = new Set((acks || []).filter((a) => freq.get(a.document_id) !== "daily" || a.sign_date === today).map((a) => a.document_id));
+  const docRow = (d, done, extra) => el("div", { class: "doc-link" },
+    el("div", {},
+      el("strong", {}, d.title),
+      el("div", { class: "muted" }, d.kind === "extra" ? "Нэмэлт" : (KIND_LABELS[d.kind] || "Ерөнхий"))),
+    el("div", { class: "row", style: "margin:0" },
+      el("span", { class: "badge " + (done ? "ok" : (extra ? "" : "no")) },
+        d.frequency === "daily" ? (done ? "Өнөөдөр зурсан" : (extra ? "Өнөөдөр аваагүй" : "Өнөөдөр зураагүй")) : (done ? "Зурсан" : "Зураагүй")),
+      el("a", { class: "btn", href: "index.html?doc=" + encodeURIComponent(d.id) }, done ? "Харах" : "Унших")));
+  // Нэмэлт (ээлжит бус) зааварчилгаа: хэзээ ч нээж унших боломжтой, өдрийн багцад орохгүй
+  const xbox = $("extra-docs");
+  xbox.replaceChildren();
+  show("extra-wrap", extras.length > 0);
+  const byType = new Map();
+  for (const d of extras) {
+    const t = d.extra_type || "Бусад";
+    if (!byType.has(t)) byType.set(t, []);
+    byType.get(t).push(d);
+  }
+  for (const [t, list] of byType) {
+    xbox.append(el("h3", { style: "margin:14px 0 6px" }, t));
+    for (const d of list) xbox.append(docRow(d, signed.has(d.id), true));
+  }
   if (!mine.length) {
     box.append(el("p", { class: "muted" }, "Танд хамаарах зааварчилгаа одоогоор алга."));
+    show("bundle-cta", false);
     return;
   }
   bundleDocs = mine.filter((d) => !signed.has(d.id));
@@ -115,19 +140,7 @@ async function loadMyDocs(route) {
   if (bundleDocs.length >= 2) $("btn-bundle").textContent = `Зураагүй ${bundleDocs.length} зааврыг нэг дор унших, нэг гарын үсэг зурах`;
   // Гэр–ажлын зам эхэндээ
   mine.sort((a, b) => (a.kind === "commute" ? -1 : 0) - (b.kind === "commute" ? -1 : 0));
-  for (const d of mine) {
-    const done = signed.has(d.id);
-    box.append(
-      el("div", { class: "doc-link" },
-        el("div", {},
-          el("strong", {}, d.title),
-          el("div", { class: "muted" }, KIND_LABELS[d.kind] || "Ерөнхий")),
-        el("div", { class: "row", style: "margin:0" },
-          el("span", { class: "badge " + (done ? "ok" : "no") }, d.frequency === "daily" ? (done ? "Өнөөдөр зурсан" : "Өнөөдөр зураагүй") : (done ? "Зурсан" : "Зураагүй")),
-          el("a", { class: "btn", href: "index.html?doc=" + encodeURIComponent(d.id) }, done ? "Харах" : "Унших"))
-      )
-    );
-  }
+  for (const d of mine) box.append(docRow(d, signed.has(d.id), false));
 }
 
 // ---- Маршрут тохируулах (OpenStreetMap) ----

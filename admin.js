@@ -42,6 +42,7 @@ async function route() {
   buildAudience();
   await loadStaff();
   await loadRoutes();
+  await loadExtraTypes();
   await loadDocs();
   setupSchoolMap();
 }
@@ -236,6 +237,76 @@ async function loadDocs() {
   }
 }
 
+let extraTypes = [];
+async function loadExtraTypes() {
+  const { data } = await sb.from("extra_types").select("id, name").order("name");
+  extraTypes = data || [];
+  const sel = $("doc-extra-type"), cur = sel.value;
+  sel.replaceChildren(...extraTypes.map((t) => el("option", { value: t.name }, t.name)));
+  if (cur) sel.value = cur;
+  const f = $("ex-type");
+  f.replaceChildren(el("option", { value: "" }, "Бүх төрөл"), ...extraTypes.map((t) => el("option", { value: t.name }, t.name)));
+}
+async function addExtraType() {
+  const name = $("new-extra-type").value.trim();
+  if (!name) return;
+  const { error } = await sb.from("extra_types").insert({ school_id: me.school_id, name });
+  if (error) { setMsg("msg-doc", translateError(error), "error"); return; }
+  $("new-extra-type").value = "";
+  await loadExtraTypes();
+  $("doc-extra-type").value = name;
+  setMsg("msg-doc", "Төрөл нэмэгдлээ.");
+}
+async function delExtraType() {
+  const name = $("doc-extra-type").value;
+  const t = extraTypes.find((x) => x.name === name);
+  if (!t) return;
+  if (!confirm("«" + name + "» төрлийг жагсаалтаас устгах уу? (Энэ төрлийн зааварчилгаа устахгүй, «Бусад» гэж харагдана.)")) return;
+  const { error } = await sb.from("extra_types").delete().eq("id", t.id);
+  if (error) { setMsg("msg-doc", translateError(error), "error"); return; }
+  await loadExtraTypes();
+}
+
+let exData = null;
+async function showExtraReport() {
+  const from = $("ex-from").value, to = $("ex-to").value, type = $("ex-type").value;
+  const { data: docs, error } = await sb.from("documents").select("id, title, extra_type").eq("school_id", me.school_id).eq("kind", "extra");
+  if (error) { setMsg("msg-global", translateError(error), "error"); return; }
+  const dmap = new Map(docs.filter((d) => !type || (d.extra_type || "Бусад") === type).map((d) => [d.id, d]));
+  const [profRes, ackRes] = await Promise.all([
+    sb.from("profiles").select("id, full_name, position, staff_group, staff_groups").eq("school_id", me.school_id),
+    sb.from("acknowledgements").select("*").in("document_id", [...dmap.keys()]).order("signed_at", { ascending: false })
+  ]);
+  if (profRes.error || ackRes.error) { setMsg("msg-global", translateError(profRes.error || ackRes.error), "error"); return; }
+  const pmap = new Map(profRes.data.map((p) => [p.id, p]));
+  const lo = from ? new Date(from + "T00:00:00") : null;
+  const hi = to ? new Date(new Date(to + "T00:00:00").getTime() + 86400000) : null;
+  const acks = ackRes.data.filter((a) => { const t = new Date(a.signed_at); return (!lo || t >= lo) && (!hi || t < hi); });
+  await resolveSignatures(acks);
+  const rows = acks.map((a) => ({ a, p: pmap.get(a.user_id) || {}, d: dmap.get(a.document_id) }));
+  exData = rows;
+  $("ex-title").textContent = "Нэмэлт зааварчилгааны тайлан" + (type ? ": " + type : "");
+  $("ex-summary").textContent = `${school ? school.name + ". " : ""}${from || "эхнээс"} – ${to || "одоог хүртэл"}. Нийт ${rows.length} гарын үсэг, ${new Set(rows.map((r) => r.a.user_id)).size} ажилтан.`;
+  const body = $("ex-body");
+  body.replaceChildren();
+  rows.forEach((r, i) => body.append(el("tr", {},
+    el("td", {}, i + 1), el("td", {}, fmtDate(r.a.signed_at)),
+    el("td", {}, r.a.full_name || r.p.full_name || ""), el("td", {}, groupsOf(r.p).join(", ")),
+    el("td", {}, r.a.position || r.p.position || ""), el("td", {}, r.d.title), el("td", {}, r.d.extra_type || "Бусад"),
+    el("td", {}, r.a.signature ? el("img", { class: "sig", src: r.a.signature, alt: "гарын үсэг" }) : ""))));
+  show("view-report", false); show("view-qr", false); show("view-daily", false);
+  show("view-extra");
+  $("view-extra").scrollIntoView({ behavior: "smooth" });
+}
+function downloadExtraCsv() {
+  if (!exData) return;
+  const lines = [["#", "Огноо", "Овог нэр", "Бүлэг", "Албан тушаал", "Зааварчилгаа", "Төрөл"].map(csvCell).join(",")];
+  exData.forEach((r, i) => lines.push([i + 1, fmtDate(r.a.signed_at), r.a.full_name || r.p.full_name || "", groupsOf(r.p).join(", "), r.a.position || r.p.position || "", r.d.title, r.d.extra_type || "Бусад"].map(csvCell).join(",")));
+  const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const a = el("a", { href: URL.createObjectURL(blob), download: "habea-nemelt-tailan.csv" });
+  document.body.append(a); a.click(); a.remove();
+}
+
 let editingDoc = null;
 
 function endEdit() {
@@ -246,6 +317,7 @@ function endEdit() {
   show("btn-doc-cancel", false);
   $("btn-doc-save").textContent = "Хадгалах";
   show("mode-wrap", false);
+  show("extra-type-wrap", false);
   show("target-wrap", false);
   show("aud-wrap");
   buildAudience();
@@ -262,7 +334,9 @@ function startEdit(d) {
   $("doc-deadline").value = d.deadline || "";
   show("mode-wrap", d.kind === "commute");
   show("target-wrap", d.kind === "trip");
-  show("aud-wrap", d.kind !== "trip");
+  show("aud-wrap", d.kind !== "trip" && d.kind !== "extra");
+  show("extra-type-wrap", d.kind === "extra");
+  if (d.kind === "extra") $("doc-extra-type").value = d.extra_type || "";
   buildAudience();
   buildTargets();
   const aud = new Set(d.audience || []);
@@ -335,6 +409,7 @@ async function onCreateDoc(e) {
       audience: aud.length ? aud : null
     };
     if (d.kind === "commute") upd.commute_mode = d.commute_mode;
+    if (d.kind === "extra") { upd.extra_type = $("doc-extra-type").value || null; upd.audience = null; }
     if (d.kind === "trip") {
       upd.target_users = [...document.querySelectorAll("#doc-targets input:checked")].map((i) => i.value);
       if (!upd.target_users.length) { setMsg("msg-doc", "Явах ажилтнуудыг сонгоно уу.", "error"); return; }
@@ -360,7 +435,8 @@ async function onCreateDoc(e) {
     audience: kind === "trip" ? [] : [...document.querySelectorAll("#doc-audience input:checked")].map((i) => i.value),
     target_users: kind === "trip" ? [...document.querySelectorAll("#doc-targets input:checked")].map((i) => i.value) : null
   };
-  if (!payload.audience.length) payload.audience = null;
+  if (!payload.audience.length || kind === "extra") payload.audience = null;
+  if (kind === "extra") payload.extra_type = $("doc-extra-type").value || null;
   if (kind === "trip" && !payload.target_users.length) {
     setMsg("msg-doc", "Томилолт, тэмцээнд явах ажилтнуудыг сонгоно уу.", "error");
     return;
@@ -372,6 +448,7 @@ async function onCreateDoc(e) {
   }
   $("form-doc").reset();
   show("mode-wrap", false);
+  show("extra-type-wrap", false);
   show("target-wrap", false);
   show("aud-wrap");
   buildAudience();
@@ -434,6 +511,7 @@ async function showReport(d, day) {
         return (r && r.mode === d.commute_mode) || acks.has(p.id);
       }
       if (d.target_users && d.target_users.length) return d.target_users.includes(p.id) || acks.has(p.id);
+      if (d.kind === "extra") return acks.has(p.id);
       return !aud || groupsOf(p).some((g) => aud.includes(g)) || acks.has(p.id);
     })
     .map((p) => ({
@@ -449,7 +527,7 @@ async function showReport(d, day) {
   const signed = rows.filter((r) => r.ack).length;
   $("report-title").textContent = d.title + (isDaily ? " — " + day : "");
   $("report-summary").textContent =
-    `${d.kind === "commute" ? "Тээврийн хэлбэр: " + (MODES[d.commute_mode] || "") + ". " : ""}${aud ? "Хамрах бүлэг: " + aud.join(", ") + ". " : ""}Нийт ${rows.length} ажилтнаас ${signed} нь гарын үсэг зурсан, ${rows.length - signed} нь зураагүй.`;
+    `${d.kind === "commute" ? "Тээврийн хэлбэр: " + (MODES[d.commute_mode] || "") + ". " : ""}${aud ? "Хамрах бүлэг: " + aud.join(", ") + ". " : ""}${d.kind === "extra" ? `Хэрэгтэй үед авдаг нэмэлт зааварчилгаа. ${signed} ажилтан гарын үсэг зурсан.` : `Нийт ${rows.length} ажилтнаас ${signed} нь гарын үсэг зурсан, ${rows.length - signed} нь зураагүй.`}`;
   const body = $("report-body");
   body.replaceChildren();
   rows.forEach((r, i) => {
@@ -501,7 +579,8 @@ async function showDaily() {
     byUser.get(a.user_id).set(a.document_id, a);
   }
   const signedProfiles = profRes.data.filter((p) => byUser.has(p.id));
-  const missing = profRes.data.filter((p) => !byUser.has(p.id));
+  const regularUsers = new Set(ackRes.data.filter((k) => (docs.get(k.document_id) || {}).kind !== "extra").map((k) => k.user_id));
+  const missing = profRes.data.filter((p) => !regularUsers.has(p.id));
   dailyData = { day, cols, rows: signedProfiles.map((p) => ({ p, acks: byUser.get(p.id) })), missing };
 
   $("daily-title").textContent = `Өдрийн нэгдсэн тайлан: ${day}`;
@@ -593,12 +672,19 @@ $("doc-kind").addEventListener("change", () => {
   const k = $("doc-kind").value;
   show("mode-wrap", k === "commute");
   show("target-wrap", k === "trip");
-  show("aud-wrap", k !== "trip");
+  show("aud-wrap", k !== "trip" && k !== "extra");
+  show("extra-type-wrap", k === "extra");
   $("doc-freq").value = (k === "daily" || k === "commute") ? "daily" : "once";
 });
 $("report-date").addEventListener("change", () => currentReport && showReport(currentReport.doc, $("report-date").value));
 $("daily-date").value = todayLocal();
 $("btn-daily").addEventListener("click", showDaily);
+$("btn-add-type").addEventListener("click", addExtraType);
+$("btn-del-type").addEventListener("click", delExtraType);
+$("btn-ex").addEventListener("click", showExtraReport);
+$("btn-ex-csv").addEventListener("click", downloadExtraCsv);
+$("btn-ex-print").addEventListener("click", () => window.print());
+$("btn-ex-close").addEventListener("click", () => show("view-extra", false));
 $("btn-daily-csv").addEventListener("click", downloadDailyCsv);
 $("btn-daily-print").addEventListener("click", () => window.print());
 $("btn-daily-close").addEventListener("click", () => show("view-daily", false));

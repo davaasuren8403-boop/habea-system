@@ -51,7 +51,7 @@
           <option value="initial">Анхан шатны зааварчилгаа</option>
           <option value="pre">Урьдчилсан зааварчилгаа</option>
           <option value="repeat">Давтан зааварчилгаа</option>
-          <option value="extra">Ээлжит бус зааварчилгаа</option>
+          <option value="extra">Нэмэлт, ээлжит бус (хэрэгтэй үед авах: гар багаж г.м)</option>
           <option value="trip">Томилолт, тэмцээн уралдааны зааварчилгаа</option>
           <option value="general">Бусад (ерөнхий) зааварчилгаа</option>
           <option value="commute">Гэр–ажлын замын заавар (тээврийн хэлбэрээр)</option>
@@ -69,6 +69,15 @@
             <option value="bus">Нийтийн тээвэр</option>
             <option value="bike">Дугуй</option>
           </select>
+        </div>
+        <div id="extra-type-wrap" hidden>
+          <label for="doc-extra-type">Нэмэлт зааварчилгааны төрөл (бүх ажилтанд харагдана)</label>
+          <select id="doc-extra-type"></select>
+          <div class="row" style="margin:6px 0">
+            <input id="new-extra-type" type="text" placeholder="Шинэ төрөл, жишээ: Хөдөлгөөнт тоглоом">
+            <button id="btn-add-type" class="secondary" type="button">Төрөл нэмэх</button>
+            <button id="btn-del-type" class="secondary" type="button">Сонгосон төрлийг устгах</button>
+          </div>
         </div>
         <label for="doc-body">Зааварчилгааны текст</label>
         <textarea id="doc-body" required></textarea>
@@ -137,6 +146,33 @@
       <div class="row">
         <input id="daily-date" type="date">
         <button id="btn-daily" type="button">Тайлан гаргах</button>
+      </div>
+    </section>
+
+    <section class="card no-print">
+      <h2>Нэмэлт зааварчилгааны гарын үсэгтэй тайлан</h2>
+      <p class="muted">Сонгосон хугацаанд нэмэлт зааварчилгаа (гар багаж, галын аюулгүй байдал, халдварт өвчин г.м) авсан ажилтнуудыг гарын үсэгтэй нь гаргана.</p>
+      <div class="row">
+        <input id="ex-from" type="date">
+        <input id="ex-to" type="date">
+        <select id="ex-type"></select>
+        <button id="btn-ex" type="button">Тайлан гаргах</button>
+      </div>
+    </section>
+
+    <section id="view-extra" class="card" hidden>
+      <h2 id="ex-title"></h2>
+      <p id="ex-summary" class="muted"></p>
+      <div class="row no-print">
+        <button id="btn-ex-csv" type="button">CSV татах</button>
+        <button id="btn-ex-print" type="button">Хэвлэх / PDF</button>
+        <button id="btn-ex-close" class="secondary" type="button">Хаах</button>
+      </div>
+      <div style="overflow-x:auto; margin-top:12px">
+        <table>
+          <thead><tr><th>#</th><th>Огноо</th><th>Овог нэр</th><th>Бүлэг</th><th>Албан тушаал</th><th>Зааварчилгаа</th><th>Төрөл</th><th>Гарын үсэг</th></tr></thead>
+          <tbody id="ex-body"></tbody>
+        </table>
       </div>
     </section>
 
