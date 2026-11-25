@@ -229,8 +229,9 @@ async function loadDocs() {
           el("button", { type: "button", onclick: () => showQr(d) }, "QR"),
           el("button", { type: "button", class: "secondary", onclick: () => showReport(d) }, "Тайлан"),
           el("button", { type: "button", class: "secondary", onclick: () => startEdit(d) }, "Засах"),
-          el("button", { type: "button", class: "secondary", onclick: () => toggleActive(d) },
-            d.active ? "Идэвхгүй болгох" : "Идэвхжүүлэх")
+          d.active
+            ? el("button", { type: "button", class: "secondary", onclick: () => toggleActive(d) }, "Идэвхгүй болгох")
+            : el("button", { type: "button", class: "secondary", style: "color:#b00020", onclick: () => deleteDoc(d) }, "Устгах")
         )
       )
     );
@@ -350,6 +351,15 @@ function startEdit(d) {
   $("btn-doc-save").textContent = "Өөрчлөлтийг хадгалах";
   setMsg("msg-doc", "");
   $("form-doc").scrollIntoView({ behavior: "smooth" });
+}
+
+async function deleteDoc(d) {
+  if (d.active) return;
+  if (!confirm("«" + (d.title || "гарчиггүй") + "» зааварчилгааг БҮРЭН УСТГАХ уу?\nЭнэ зааварчилгааны гарын үсгийн бүртгэл мөн устаж болзошгүй. Буцаах боломжгүй.")) return;
+  const { error } = await sb.from("documents").delete().eq("id", d.id);
+  if (error) setMsg("msg-global", "Устгаж чадсангүй: " + translateError(error), "error");
+  else setMsg("msg-global", "Устгагдлаа.");
+  await loadDocs();
 }
 
 async function toggleActive(d) {

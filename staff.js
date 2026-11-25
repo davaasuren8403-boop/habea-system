@@ -121,29 +121,31 @@ async function loadMyDocs(route) {
   const xbox = $("extra-docs");
   xbox.replaceChildren();
   show("extra-wrap", optDocs.length > 0);
-  const CATS = [["extra", "Нэмэлт, ээлжит бус зааварчилгаа"], ["initial", "Анхан шатны зааварчилгаа"], ["pre", "Урьдчилсан зааварчилгаа"], ["repeat", "Давтан зааварчилгаа"], ["general", "Бусад зааварчилгаа"]];
-  const sumStyle = "cursor:pointer;font-weight:600;padding:8px 0";
-  for (const [k, label] of CATS) {
-    const list = optDocs.filter((d) => d.kind === k);
-    if (!list.length) continue;
-    const det = el("details", { style: "margin:8px 0" }, el("summary", { style: sumStyle }, label + " (" + list.length + ")"));
-    if (k === "extra") {
-      const byType = new Map();
-      for (const d of list) {
-        const t = d.extra_type || "Бусад";
-        if (!byType.has(t)) byType.set(t, []);
-        byType.get(t).push(d);
-      }
-      for (const [t, l] of byType) {
-        const sub = el("details", { style: "margin:4px 0 4px 12px" }, el("summary", { style: sumStyle }, t + " (" + l.length + ")"));
-        for (const d of l) sub.append(docRow(d, signed.has(d.id), true));
-        det.append(sub);
-      }
-    } else {
-      for (const d of list) det.append(docRow(d, signed.has(d.id), true));
-    }
-    xbox.append(det);
+  const CATS = [["initial", "Анхан шатны зааварчилгаа"], ["pre", "Урьдчилсан зааварчилгаа"], ["repeat", "Давтан зааварчилгаа"], ["general", "Бусад зааварчилгаа"]];
+  const groups = []; // [нэр, жагсаалт]
+  const extraList = optDocs.filter((d) => d.kind === "extra");
+  const byType = new Map();
+  for (const d of extraList) {
+    const t = d.extra_type || "Бусад";
+    if (!byType.has(t)) byType.set(t, []);
+    byType.get(t).push(d);
   }
+  for (const [t, l] of byType) groups.push(["Нэмэлт: " + t, l]);
+  for (const [k, label] of CATS) {
+    const l = optDocs.filter((d) => d.kind === k);
+    if (l.length) groups.push([label, l]);
+  }
+  const sel = el("select", { id: "opt-type" },
+    el("option", { value: "" }, "— Зааварчилгааны төрлөө сонгоно уу —"),
+    ...groups.map(([n, l], i) => el("option", { value: String(i) }, n + " (" + l.length + ")")));
+  const listBox = el("div", {});
+  sel.addEventListener("change", () => {
+    listBox.replaceChildren();
+    const g = groups[Number(sel.value)];
+    if (sel.value === "" || !g) return;
+    for (const d of g[1]) listBox.append(docRow(d, signed.has(d.id), true));
+  });
+  xbox.append(sel, listBox);
   if (!mine.length) {
     box.append(el("p", { class: "muted" }, "Танд хамаарах зааварчилгаа одоогоор алга."));
     show("bundle-cta", false);
