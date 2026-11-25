@@ -97,9 +97,11 @@ async function loadMyDocs(route) {
     box.append(el("p", { class: "muted" }, translateError(error)));
     return;
   }
-  const extras = docs.filter((d) => d.kind === "extra");
+  // Хэрэгтэй үед авдаг зааварчилгаа (төрлөөр сонгоно): өдрийн багцад орохгүй, хүн бүрт харагдана
+  const OPT = ["extra", "initial", "pre", "repeat", "general"];
+  const optDocs = docs.filter((d) => OPT.includes(d.kind));
   const mine = docs.filter((d) => {
-    if (d.kind === "extra") return false;
+    if (OPT.includes(d.kind)) return false;
     if (d.kind === "commute") return d.commute_mode === route.mode;
     if (d.target_users && d.target_users.length) return d.target_users.includes(currentUser.id);
     return !d.audience || !d.audience.length || groupsOf(currentProfile).some((g) => d.audience.includes(g));
@@ -116,20 +118,30 @@ async function loadMyDocs(route) {
       el("span", { class: "badge " + (done ? "ok" : (extra ? "" : "no")) },
         d.frequency === "daily" ? (done ? "Өнөөдөр зурсан" : (extra ? "Өнөөдөр аваагүй" : "Өнөөдөр зураагүй")) : (done ? "Зурсан" : "Зураагүй")),
       el("a", { class: "btn", href: "index.html?doc=" + encodeURIComponent(d.id) }, done ? "Харах" : "Унших")));
-  // Нэмэлт (ээлжит бус) зааварчилгаа: хэзээ ч нээж унших боломжтой, өдрийн багцад орохгүй
   const xbox = $("extra-docs");
   xbox.replaceChildren();
-  show("extra-wrap", extras.length > 0);
-  const byType = new Map();
-  for (const d of extras) {
-    const t = d.extra_type || "Бусад";
-    if (!byType.has(t)) byType.set(t, []);
-    byType.get(t).push(d);
-  }
-  for (const [t, list] of byType) {
-    const det = el("details", { style: "margin:8px 0" },
-      el("summary", { style: "cursor:pointer;font-weight:600;padding:8px 0" }, t + " (" + list.length + ")"));
-    for (const d of list) det.append(docRow(d, signed.has(d.id), true));
+  show("extra-wrap", optDocs.length > 0);
+  const CATS = [["extra", "Нэмэлт, ээлжит бус зааварчилгаа"], ["initial", "Анхан шатны зааварчилгаа"], ["pre", "Урьдчилсан зааварчилгаа"], ["repeat", "Давтан зааварчилгаа"], ["general", "Бусад зааварчилгаа"]];
+  const sumStyle = "cursor:pointer;font-weight:600;padding:8px 0";
+  for (const [k, label] of CATS) {
+    const list = optDocs.filter((d) => d.kind === k);
+    if (!list.length) continue;
+    const det = el("details", { style: "margin:8px 0" }, el("summary", { style: sumStyle }, label + " (" + list.length + ")"));
+    if (k === "extra") {
+      const byType = new Map();
+      for (const d of list) {
+        const t = d.extra_type || "Бусад";
+        if (!byType.has(t)) byType.set(t, []);
+        byType.get(t).push(d);
+      }
+      for (const [t, l] of byType) {
+        const sub = el("details", { style: "margin:4px 0 4px 12px" }, el("summary", { style: sumStyle }, t + " (" + l.length + ")"));
+        for (const d of l) sub.append(docRow(d, signed.has(d.id), true));
+        det.append(sub);
+      }
+    } else {
+      for (const d of list) det.append(docRow(d, signed.has(d.id), true));
+    }
     xbox.append(det);
   }
   if (!mine.length) {

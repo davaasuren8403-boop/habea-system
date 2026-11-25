@@ -579,7 +579,7 @@ async function showDaily() {
     byUser.get(a.user_id).set(a.document_id, a);
   }
   const signedProfiles = profRes.data.filter((p) => byUser.has(p.id));
-  const regularUsers = new Set(ackRes.data.filter((k) => (docs.get(k.document_id) || {}).kind !== "extra").map((k) => k.user_id));
+  const regularUsers = new Set(ackRes.data.filter((k) => !["extra","initial","pre","repeat","general"].includes((docs.get(k.document_id) || {}).kind)).map((k) => k.user_id));
   const missing = profRes.data.filter((p) => !regularUsers.has(p.id));
   dailyData = { day, cols, rows: signedProfiles.map((p) => ({ p, acks: byUser.get(p.id) })), missing };
 
