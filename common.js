@@ -45,11 +45,22 @@ function el(tag, attrs, ...children) {
   return node;
 }
 
+function ubParts(iso) {
+  const f = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ulaanbaatar", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  const o = {};
+  for (const x of f.formatToParts(new Date(iso))) o[x.type] = x.value;
+  return o;
+}
+// Бүх цагийг Улаанбаатарын цагаар, 24 цагийн хэлбэрээр харуулна
 function fmtDate(iso) {
   if (!iso) return "";
-  const d = new Date(iso);
-  const p = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  const o = ubParts(iso);
+  return `${o.year}-${o.month}-${o.day} ${o.hour}:${o.minute}`;
+}
+function fmtTime(iso) {
+  if (!iso) return "";
+  const o = ubParts(iso);
+  return `${o.hour}:${o.minute}`;
 }
 
 function translateError(err) {

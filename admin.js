@@ -621,7 +621,7 @@ async function showDaily() {
       el("td", {}, i + 1), el("td", {}, r.p.full_name, delBtn(r.p, showDaily)), el("td", {}, groupsOf(r.p).join(", ")),
       ...cols.map((c) => {
         const ak = r.acks.get(c.id);
-        return el("td", {}, ak ? el("span", { class: "badge ok" }, new Date(ak.signed_at).toLocaleTimeString("mn-MN", { hour: "2-digit", minute: "2-digit" })) : el("span", { class: "badge no" }, "—"));
+        return el("td", {}, ak ? el("span", { class: "badge ok" }, fmtTime(ak.signed_at)) : el("span", { class: "badge no" }, "—"));
       }),
       el("td", {}, el("img", { class: "sig", src: first.signature, alt: "гарын үсэг" }))));
   });
